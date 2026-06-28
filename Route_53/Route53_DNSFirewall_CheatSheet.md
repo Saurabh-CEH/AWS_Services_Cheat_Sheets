@@ -49,23 +49,21 @@ DNS Firewall evaluates rules (lowest priority first)
 
 ## Actions
 
-+-----------+---------------------------------------------------------+
-|  Action   |                        Behavior                         |
-+-----------+---------------------------------------------------------+
-| **ALLOW** |    Permit the query. Stop evaluating further rules.     |
-| **BLOCK** |     Deny the query. Return a configurable response.     |
+| Action    | Behavior                                                |
+| --------- | ------------------------------------------------------- |
+| **ALLOW** | Permit the query. Stop evaluating further rules.        |
+| **BLOCK** | Deny the query. Return a configurable response.         |
 | **ALERT** | Permit the query but log it. Continue evaluating rules. |
-+-----------+---------------------------------------------------------+
+
 
 ### BLOCK Response Types
 
-+---------------+----------------------------------------------------------------------+
-| Response Type |                             Description                              |
-+---------------+----------------------------------------------------------------------+
-|  **NODATA**   |            Returns empty response (no error, no records)             |
-| **NXDOMAIN**  |                   Returns "domain does not exist"                    |
+| Response Type | Description                                                          |
+| ------------- | -------------------------------------------------------------------- |
+| **NODATA**    | Returns empty response (no error, no records)                        |
+| **NXDOMAIN**  | Returns "domain does not exist"                                      |
 | **OVERRIDE**  | Returns a custom DNS response (e.g., redirect to a walled garden IP) |
-+---------------+----------------------------------------------------------------------+
+
 
 ---
 
@@ -82,15 +80,14 @@ DNS Firewall evaluates rules (lowest priority first)
 
 AWS maintains lists of domains associated with malicious activity:
 
-+---------------------------------+----------------------------------------------+
-|              List               |                 Description                  |
-+---------------------------------+----------------------------------------------+
-|  **AmazonGuardDutyThreatList**  |  Domains identified by GuardDuty as threats  |
+| List                            | Description                                  |
+| ------------------------------- | -------------------------------------------- |
+| **AmazonGuardDutyThreatList**   | Domains identified by GuardDuty as threats   |
 | **AmazonRegisteredDomainsList** | Used with allowlists for AWS service domains |
-|       Botnet C&C domains        |      Command-and-control infrastructure      |
-|         Malware domains         |       Known malware distribution sites       |
-|     Newly observed domains      |  Recently registered domains (higher risk)   |
-+---------------------------------+----------------------------------------------+
+| Botnet C&C domains              | Command-and-control infrastructure           |
+| Malware domains                 | Known malware distribution sites             |
+| Newly observed domains          | Recently registered domains (higher risk)    |
+
 
 > Managed lists are free to use. You reference them in rules just like custom lists.
 
@@ -102,12 +99,11 @@ Beyond static domain lists, DNS Firewall Advanced provides intelligent threat de
 
 ### Threat Types Detected
 
-+---------------------------------------+-------------------------------------------------------------+
-|                Threat                 |                         Description                         |
-+---------------------------------------+-------------------------------------------------------------+
-|           **DNS Tunneling**           | Data exfiltration by encoding data in DNS queries/responses |
-| **DGA (Domain Generation Algorithm)** |        Malware-generated random domain names for C&C        |
-+---------------------------------------+-------------------------------------------------------------+
+| Threat                                | Description                                                 |
+| ------------------------------------- | ----------------------------------------------------------- |
+| **DNS Tunneling**                     | Data exfiltration by encoding data in DNS queries/responses |
+| **DGA (Domain Generation Algorithm)** | Malware-generated random domain names for C&C              |
+
 
 ### How Advanced Detection Works
 
@@ -126,12 +122,11 @@ Same as standard rules: ALLOW, BLOCK, ALERT
 
 Controls what happens when DNS Firewall is unavailable:
 
-+-------------------------+----------------------------------------------------+
-|          Mode           |                      Behavior                      |
-+-------------------------+----------------------------------------------------+
+| Mode                    | Behavior                                           |
+| ----------------------- | -------------------------------------------------- |
 | **Fail Open** (default) | If firewall fails, queries pass through unfiltered |
-|     **Fail Closed**     |     If firewall fails, all queries are blocked     |
-+-------------------------+----------------------------------------------------+
+| **Fail Closed**         | If firewall fails, all queries are blocked         |
+
 
 > Choose based on your risk tolerance: fail-open preserves availability, fail-closed preserves security.
 
@@ -311,12 +306,10 @@ aws ram create-resource-share \
 
 ## CloudWatch Metrics
 
-+--------------------------------+-----------------------------------------+
 |             Metric             |               Description               |
-+--------------------------------+-----------------------------------------+
+--------------------------------|-----------------------------------------
 | `FirewallRuleGroupQueryVolume` | Total queries evaluated by a rule group |
 |     `FirewallRuleHitCount`     | Number of times a specific rule matched |
-+--------------------------------+-----------------------------------------+
 
 ---
 
@@ -326,13 +319,13 @@ DNS Firewall actions are logged via **Resolver Query Logging**.
 
 ### Log Fields for Firewall Events
 
-+---------------------------+---------------------------+
+
 |           Field           |        Description        |
-+---------------------------+---------------------------+
+----------------------------|--------------------------
 |  `firewall_rule_action`   |  ALLOW, BLOCK, or ALERT   |
 | `firewall_rule_group_id`  | Which rule group matched  |
 | `firewall_domain_list_id` | Which domain list was hit |
-+---------------------------+---------------------------+
+
 
 ### Setting Up Logging
 
@@ -353,30 +346,28 @@ aws route53resolver associate-resolver-query-log-config \
 
 ## Integration with AWS Services
 
-+----------------------------+---------------------------------------------------------------------------+
 |          Service           |                                Integration                                |
-+----------------------------+---------------------------------------------------------------------------+
+--------------------------------------|-----------------------------------------------------------------
 |  **AWS Firewall Manager**  | Centrally deploy DNS Firewall policies across accounts in an Organization |
 |        **AWS RAM**         |                     Share rule groups across accounts                     |
 |   **Route 53 Profiles**    |   Include DNS Firewall rule groups in profile for multi-VPC management    |
 |       **CloudWatch**       |                      Metrics and alarms on rule hits                      |
 | **Resolver Query Logging** |                   Full audit trail of firewall actions                    |
 |       **GuardDuty**        |               Managed threat lists from GuardDuty findings                |
-+----------------------------+---------------------------------------------------------------------------+
 
 ---
 
 ## Pricing
 
-+--------------------------------------+-------------------------------------+
+
 |              Component               |                Cost                 |
-+--------------------------------------+-------------------------------------+
+---------------------------------------|------------------------------------
 | Domain list queries (first 1B/month) |      $0.60 per million queries      |
 | Domain list queries (over 1B/month)  |      $0.40 per million queries      |
 |        DNS Firewall Advanced         |      Additional cost per query      |
 |       AWS Managed domain lists       |                Free                 |
 |     Firewall Manager policy fee      | $100/month per region (if using FM) |
-+--------------------------------------+-------------------------------------+
+
 
 > Billing applies to all DNS queries from VPCs with associated rule groups AND queries traversing inbound Resolver endpoints.
 
@@ -384,9 +375,9 @@ aws route53resolver associate-resolver-query-log-config \
 
 ## Quotas
 
-+--------------------------------------------------+---------------+
+
 |                     Resource                     | Default Limit |
-+--------------------------------------------------+---------------+
+--------------------------------------------------|---------------
 |       Domain lists per account per region        |     1,000     |
 |             Domains per domain list              |    100,000    |
 |        Rule groups per account per region        |     1,000     |
@@ -394,19 +385,19 @@ aws route53resolver associate-resolver-query-log-config \
 |         Rule group associations per VPC          |       5       |
 | Total rules across all associated groups per VPC |      500      |
 |    Firewall domain list file size (S3 import)    |     35 MB     |
-+--------------------------------------------------+---------------+
+
 
 ---
 
 ## Domain Matching Behavior
 
-+-----------------+----------------------------------------------------------------------------------+
+
 |     Pattern     |                                     Matches                                      |
-+-----------------+----------------------------------------------------------------------------------+
+-----------------|----------------------------------------------------------------------------------
 |  `example.com`  |                `example.com` AND `*.example.com` (all subdomains)                |
 | `*.example.com` | Only subdomains: `sub.example.com`, `a.b.example.com` (NOT `example.com` itself) |
 |       `*`       |                         Everything (catch-all wildcard)                          |
-+-----------------+----------------------------------------------------------------------------------+
+
 
 > This is different from standard DNS wildcards. A bare domain in the list matches itself AND all subdomains.
 
@@ -414,16 +405,16 @@ aws route53resolver associate-resolver-query-log-config \
 
 ## Troubleshooting
 
-+-----------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------+
+
 |               Issue               |                               Cause                               |                                 Fix                                  |
-+-----------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------+
+-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------+
 |    Legitimate domains blocked     |            Overly broad domain list or priority issue             | Check rule priority order; add ALLOW rule with lower priority number |
 |         Block not working         | Rule group not associated with VPC, or higher-priority ALLOW rule |              Verify association; check rule priorities               |
 |       Inconsistent blocking       |                   Domain list propagation delay                   |         Wait a few minutes; changes propagate asynchronously         |
 | Query log missing firewall fields |               Query logging not associated with VPC               |               Associate query log config with the VPC                |
 |        All queries failing        |             Fail-closed mode + firewall service issue             |          Switch to fail-open or investigate firewall health          |
 |     Advanced rules not firing     |             Advanced not enabled or wrong threat type             |             Verify rule configuration for DGA/tunneling              |
-+-----------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------------+
+
 
 ---
 
