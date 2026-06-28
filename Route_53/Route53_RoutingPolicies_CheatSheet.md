@@ -8,18 +8,17 @@ Route 53 routing policies determine how DNS queries are answered. They let you c
 
 ## All Routing Policies at a Glance
 
-+-----------------------+---------------------------------------------+----------------------------+------------+
-|        Policy         |                  Use Case                   |    Health Check Support    | Private HZ |
-+-----------------------+---------------------------------------------+----------------------------+------------+
-|      **Simple**       | Single resource or multiple values (random) |      No (per record)       |    Yes     |
-|     **Weighted**      |      Distribute traffic by proportion       |            Yes             |    Yes     |
-|      **Latency**      |       Route to lowest-latency region        |            Yes             |     No     |
-|     **Failover**      |              Active-passive DR              | Yes (required for primary) |    Yes     |
-|    **Geolocation**    |     Route by user's geographic location     |            Yes             |    Yes     |
-|   **Geoproximity**    |    Route by distance to resource + bias     |            Yes             |    Yes     |
-| **Multivalue Answer** |    Return multiple healthy IPs (up to 8)    |            Yes             |    Yes     |
-|     **IP-based**      |        Route by source IP/CIDR range        |            Yes             |     No     |
-+-----------------------+---------------------------------------------+----------------------------+------------+
+| Policy                | Use Case                                    | Health Check Support       | Private HZ |
+| --------------------- | ------------------------------------------- | -------------------------- | ---------- |
+| **Simple**            | Single resource or multiple values (random) | No (per record)            | Yes        |
+| **Weighted**          | Distribute traffic by proportion            | Yes                        | Yes        |
+| **Latency**           | Route to lowest-latency region              | Yes                        | No         |
+| **Failover**          | Active-passive DR                           | Yes (required for primary) | Yes        |
+| **Geolocation**       | Route by user's geographic location         | Yes                        | Yes        |
+| **Geoproximity**      | Route by distance to resource + bias        | Yes                        | Yes        |
+| **Multivalue Answer** | Return multiple healthy IPs (up to 8)       | Yes                        | Yes        |
+| **IP-based**          | Route by source IP/CIDR range               | Yes                        | No         |
+
 
 ---
 
@@ -276,15 +275,14 @@ aws route53 change-resource-record-sets --hosted-zone-id Z1234 --change-batch '{
 
 ### Geolocation vs Geoproximity
 
-+-----------------------+------------------------------------------------+---------------------------------+
-|        Feature        |                  Geolocation                   |          Geoproximity           |
-+-----------------------+------------------------------------------------+---------------------------------+
-|       Based on        | Political boundaries (continent/country/state) |        Physical distance        |
-|      Adjustable?      |                       No                       |      Yes (bias -99 to +99)      |
-|   Non-AWS locations   |                       No                       |   Yes (lat/long coordinates)    |
-|   "Default" record    |                Yes (catch-all)                 | Routes to nearest automatically |
-| Traffic Flow required |                       No                       |   Only for custom coordinates   |
-+-----------------------+------------------------------------------------+---------------------------------+
+| Feature               | Geolocation                                    | Geoproximity                    |
+| --------------------- | ---------------------------------------------- | ------------------------------- |
+| Based on              | Political boundaries (continent/country/state) | Physical distance               |
+| Adjustable?           | No                                             | Yes (bias -99 to +99)           |
+| Non-AWS locations     | No                                             | Yes (lat/long coordinates)      |
+| "Default" record      | Yes (catch-all)                                | Routes to nearest automatically |
+| Traffic Flow required | No                                             | Only for custom coordinates     |
+
 
 ---
 
@@ -307,13 +305,12 @@ aws route53 change-resource-record-sets --hosted-zone-id Z1234 --change-batch '{
 
 **Simple vs Multivalue:**
 
-+----------------------+--------------------------+------------------------------+
-|       Feature        | Simple (multiple values) |      Multivalue Answer       |
-+----------------------+--------------------------+------------------------------+
-|    Health checks     | Not supported per value  |     Supported per record     |
-|  Unhealthy removal   |            No            | Yes (excluded from response) |
-| Max records returned |        All values        |           Up to 8            |
-+----------------------+--------------------------+------------------------------+
+| Feature              | Simple (multiple values) | Multivalue Answer              |
+| -------------------- | ------------------------ | ------------------------------ |
+| Health checks        | Not supported per value  | Supported per record           |
+| Unhealthy removal    | No                       | Yes (excluded from response)   |
+| Max records returned | All values               | Up to 8                        |
+
 
 ```bash
 aws route53 change-resource-record-sets --hosted-zone-id Z1234 --change-batch '{
@@ -464,34 +461,32 @@ Alias records are a Route 53-specific extension that route traffic to AWS resour
 
 ## Health Check Integration with Routing
 
-+--------------------------------+------------------------------------------+
-|            Scenario            |                 Behavior                 |
-+--------------------------------+------------------------------------------+
-|         Record healthy         |          Included in responses           |
-|        Record unhealthy        |         Excluded from responses          |
-|     All records unhealthy      | Route 53 returns all records (fail-open) |
-|   No health check on record    |     Record always considered healthy     |
-| Alias + Evaluate Target Health |      Uses target resource's health       |
-|   Failover primary unhealthy   |            Returns secondary             |
-+--------------------------------+------------------------------------------+
+| Scenario                       | Behavior                                 |
+| ------------------------------ | ---------------------------------------- |
+| Record healthy                 | Included in responses                    |
+| Record unhealthy               | Excluded from responses                  |
+| All records unhealthy          | Route 53 returns all records (fail-open) |
+| No health check on record      | Record always considered healthy         |
+| Alias + Evaluate Target Health | Uses target resource's health            |
+| Failover primary unhealthy     | Returns secondary                        |
+
 
 ---
 
 ## Key Quotas
 
-+------------------------------------+-----------------------------------+
-|              Resource              |               Limit               |
-+------------------------------------+-----------------------------------+
-|      Records per hosted zone       | 10,000 (soft limit, can increase) |
-|   Weighted records per name/type   |                100                |
-|   Latency records per name/type    |          One per region           |
-| Geolocation records per name/type  |         One per location          |
-|    CIDR collections per account    |                 5                 |
-|  CIDR blocks per CIDR collection   |               1,000               |
-|   Locations per CIDR collection    |                100                |
-|    Traffic policies per account    |                50                 |
-| Traffic policy records per account |                 5                 |
-+------------------------------------+-----------------------------------+
+| Resource                           | Limit                             |
+| ---------------------------------- | --------------------------------- |
+| Records per hosted zone            | 10,000 (soft limit, can increase) |
+| Weighted records per name/type     | 100                               |
+| Latency records per name/type      | One per region                    |
+| Geolocation records per name/type  | One per location                  |
+| CIDR collections per account       | 5                                 |
+| CIDR blocks per CIDR collection    | 1,000                             |
+| Locations per CIDR collection      | 100                               |
+| Traffic policies per account       | 50                                |
+| Traffic policy records per account | 5                                 |
+
 
 ---
 
@@ -509,18 +504,17 @@ Alias records are a Route 53-specific extension that route traffic to AWS resour
 
 ## Quick Decision Guide
 
-+---------------------------------------------+---------------------+
-|                  Situation                  | Which Policy to use |
-+---------------------------------------------+---------------------+
-|          Need DR / active-passive?          |      Failover       |
-|         Need to split traffic by %?         |      Weighted       |
-|    Need lowest latency for global users?    |    Latency-based    |
-|       Need routing by country/region?       |     Geolocation     |
-| Need routing by distance + adjustable bias? |    Geoproximity     |
-|       Need routing by source IP/CIDR?       |      IP-based       |
-|     Need multiple healthy IPs returned?     |  Multivalue Answer  |
-|      Just one resource, nothing fancy?      |       Simple        |
-+---------------------------------------------+---------------------+
+| Situation                                   | Which Policy to use |
+| ------------------------------------------- | ------------------- |
+| Need DR / active-passive?                   | Failover            |
+| Need to split traffic by %?                 | Weighted            |
+| Need lowest latency for global users?       | Latency-based       |
+| Need routing by country/region?             | Geolocation         |
+| Need routing by distance + adjustable bias? | Geoproximity        |
+| Need routing by source IP/CIDR?             | IP-based            |
+| Need multiple healthy IPs returned?         | Multivalue Answer   |
+| Just one resource, nothing fancy?           | Simple              |
+
 
 
 ---

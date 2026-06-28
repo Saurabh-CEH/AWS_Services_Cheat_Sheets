@@ -10,14 +10,13 @@ Route 53 health checks monitor the health and performance of your endpoints (web
 
 ## Types of Health Checks
 
-+-------------------------+------------------------------------------------------------------------------+
-|          Type           |                                 Description                                  |
-+-------------------------+------------------------------------------------------------------------------+
-|      **Endpoint**       |            Monitors a specific IP/domain via HTTP, HTTPS, or TCP             |
-|     **Calculated**      |          Monitors the status of other health checks (parent/child)           |
-|  **CloudWatch Alarm**   |  Monitors the state of a CloudWatch alarm (OK = healthy, ALARM = unhealthy)  |
+| Type                    | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| **Endpoint**            | Monitors a specific IP/domain via HTTP, HTTPS, or TCP                        |
+| **Calculated**          | Monitors the status of other health checks (parent/child)                    |
+| **CloudWatch Alarm**    | Monitors the state of a CloudWatch alarm (OK = healthy, ALARM = unhealthy)   |
 | **Recovery Controller** | Used with Application Recovery Controller (ARC) for routing control failover |
-+-------------------------+------------------------------------------------------------------------------+
+
 
 ---
 
@@ -25,37 +24,34 @@ Route 53 health checks monitor the health and performance of your endpoints (web
 
 ### Endpoint Monitoring
 
-+---------------------+-----------------------------------------------------------------------------------+
-|      Protocol       |                                     Behavior                                      |
-+---------------------+-----------------------------------------------------------------------------------+
-|      **HTTP**       |     TCP connect + send HTTP GET request; expects 2xx or 3xx within 2 seconds      |
-|      **HTTPS**      | TCP connect + TLS handshake + send HTTPS GET; expects 2xx or 3xx within 2 seconds |
-|       **TCP**       |                   Only checks TCP connection can be established                   |
-| **HTTP_STR_MATCH**  |  HTTP check + searches first 5,120 bytes of response body for a specified string  |
+| Protocol            | Behavior                                                                          |
+| ------------------- | --------------------------------------------------------------------------------- |
+| **HTTP**            | TCP connect + send HTTP GET request; expects 2xx or 3xx within 2 seconds          |
+| **HTTPS**           | TCP connect + TLS handshake + send HTTPS GET; expects 2xx or 3xx within 2 seconds |
+| **TCP**             | Only checks TCP connection can be established                                     |
+| **HTTP_STR_MATCH**  | HTTP check + searches first 5,120 bytes of response body for a specified string   |
 | **HTTPS_STR_MATCH** | HTTPS check + searches first 5,120 bytes of response body for a specified string  |
-+---------------------+-----------------------------------------------------------------------------------+
+
 
 ### Timeouts
 
-+----------------------+------------------------+-------------------------------------------------------------------+
-|       Protocol       | TCP Connection Timeout |                         Response Timeout                          |
-+----------------------+------------------------+-------------------------------------------------------------------+
-|      HTTP/HTTPS      |       4 seconds        |                   2 seconds (after connection)                    |
-|         TCP          |       10 seconds       |                                N/A                                |
-| HTTP/HTTPS STR_MATCH |       4 seconds        | 2 seconds (after connection) + receive response body in 2 seconds |
-+----------------------+------------------------+-------------------------------------------------------------------+
+| Protocol             | TCP Connection Timeout | Response Timeout                                                  |
+| -------------------- | ---------------------- | ----------------------------------------------------------------- |
+| HTTP/HTTPS           | 4 seconds              | 2 seconds (after connection)                                      |
+| TCP                  | 10 seconds             | N/A                                                               |
+| HTTP/HTTPS STR_MATCH | 4 seconds              | 2 seconds (after connection) + receive response body in 2 seconds |
+
 
 ---
 
 ## Request Interval & Failure Threshold
 
-+-----------------------+----------------------------------------+---------------------------------+
-|        Setting        |                Standard                |              Fast               |
-+-----------------------+----------------------------------------+---------------------------------+
-| **Request Interval**  |            Every 30 seconds            |        Every 10 seconds         |
-| **Failure Threshold** | 1-10 (default: 3) consecutive failures |              Same               |
-|       **Cost**        |               Base price               | Additional cost for fast checks |
-+-----------------------+----------------------------------------+---------------------------------+
+| Setting               | Standard                               | Fast                            |
+| --------------------- | -------------------------------------- | ------------------------------- |
+| **Request Interval**  | Every 30 seconds                       | Every 10 seconds                |
+| **Failure Threshold** | 1-10 (default: 3) consecutive failures | Same                            |
+| **Cost**              | Base price                             | Additional cost for fast checks |
+
 
 > Health checkers from different data centers don't coordinate. You may see several requests per second followed by pauses.
 
@@ -77,14 +73,13 @@ Route 53 health checks monitor the health and performance of your endpoints (web
 
 Combine multiple child health checks using logic:
 
-+------------------------+---------------------------------------------------------+
-|         Logic          |                       Description                       |
-+------------------------+---------------------------------------------------------+
-|        **AND**         |          Healthy only if ALL child checks pass          |
-|         **OR**         |       Healthy if at least one child check passes        |
-|        **NOT**         |            Healthy if a specific check fails            |
+| Logic                  | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| **AND**                | Healthy only if ALL child checks pass                   |
+| **OR**                 | Healthy if at least one child check passes              |
+| **NOT**                | Healthy if a specific check fails                       |
 | **Threshold (x of n)** | Healthy if at least x out of n child checks are healthy |
-+------------------------+---------------------------------------------------------+
+
 
 - Max 256 child health checks per calculated health check.
 
@@ -132,30 +127,27 @@ curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | \
 
 ### Endpoint Health Check Parameters
 
-+-------------------------+-----------------------------------------------------------------------------+
-|        Parameter        |                                 Description                                 |
-+-------------------------+-----------------------------------------------------------------------------+
-|     **IP Address**      |                        IPv4 or IPv6 of the endpoint                         |
-|     **Domain Name**     |                 FQDN (if no IP specified, resolves via DNS)                 |
-|        **Port**         |                1-65535 (default: 80 for HTTP, 443 for HTTPS)                |
-|    **Resource Path**    |              URL path for HTTP/HTTPS checks (e.g., `/health`)               |
-|    **Search String**    | String to find in response body (max 255 chars, first 5,120 bytes searched) |
-|  **Request Interval**   |                              10 or 30 seconds                               |
-|  **Failure Threshold**  |             1-10 consecutive failures before marking unhealthy              |
-|     **Enable SNI**      |              Send TLS SNI for HTTPS checks (recommended: true)              |
-|       **Regions**       |                     Choose specific regions or use all                      |
-| **Invert Health Check** |                        Flip healthy/unhealthy status                        |
-|   **Latency Graphs**    |                  Enable latency measurement in CloudWatch                   |
-+-------------------------+-----------------------------------------------------------------------------+
+| Parameter               | Description                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- |
+| **IP Address**          | IPv4 or IPv6 of the endpoint                                                |
+| **Domain Name**         | FQDN (if no IP specified, resolves via DNS)                                 |
+| **Port**                | 1-65535 (default: 80 for HTTP, 443 for HTTPS)                               |
+| **Resource Path**       | URL path for HTTP/HTTPS checks (e.g., `/health`)                            |
+| **Search String**       | String to find in response body (max 255 chars, first 5,120 bytes searched) |
+| **Request Interval**    | 10 or 30 seconds                                                            |
+| **Failure Threshold**   | 1-10 consecutive failures before marking unhealthy                          |
+| **Enable SNI**          | Send TLS SNI for HTTPS checks (recommended: true)                           |
+| **Regions**             | Choose specific regions or use all                                          |
+| **Invert Health Check** | Flip healthy/unhealthy status                                               |
+| **Latency Graphs**      | Enable latency measurement in CloudWatch                                    |
+
 
 ### Advanced Options
 
-+-----------------------------------+-------------------------------------------------------------+
-|             Parameter             |                         Description                         |
-+-----------------------------------+-------------------------------------------------------------+
-| **Health Threshold (Calculated)** |         Number of child checks that must be healthy         |
-|  **Insufficient Data Handling**   | What status to assign when CloudWatch has insufficient data |
-+-----------------------------------+-------------------------------------------------------------+
+| Parameter                         | Description                                                 |
+| --------------------------------- | ----------------------------------------------------------- |
+| **Health Threshold (Calculated)** | Number of child checks that must be healthy                 |
+| **Insufficient Data Handling**    | What status to assign when CloudWatch has insufficient data |
 
 ---
 
@@ -180,14 +172,13 @@ curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | \
 
 ## Pricing (approximate, verify current pricing)
 
-+--------------------------------------------------------------------------------+------------------------------+
-|                                      Item                                      |             Cost             |
-+--------------------------------------------------------------------------------+------------------------------+
-|                           AWS endpoint health checks                           |    $0.50/month per check     |
-|                         Non-AWS endpoint health checks                         |    $0.75/month per check     |
+| Item                                                                           | Cost                         |
+| ------------------------------------------------------------------------------ | ---------------------------- |
+| AWS endpoint health checks                                                     | $0.50/month per check        |
+| Non-AWS endpoint health checks                                                 | $0.75/month per check        |
 | Optional features (HTTPS, string matching, fast interval, latency measurement) | Additional $1.00-$2.00/month |
-|                      First 50 AWS endpoint health checks                       |      Free tier eligible      |
-+--------------------------------------------------------------------------------+------------------------------+
+| First 50 AWS endpoint health checks                                            | Free tier eligible           |
+
 
 > String matching, HTTPS, fast interval (10s), and latency measurement each add cost.
 
@@ -197,15 +188,14 @@ curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | \
 
 ### Health Check Metrics (Namespace: `AWS/Route53`)
 
-+--------------------------------+---------------------------------------------+
-|             Metric             |                 Description                 |
-+--------------------------------+---------------------------------------------+
-|      `HealthCheckStatus`       |         1 = healthy, 0 = unhealthy          |
-| `HealthCheckPercentageHealthy` |   % of health checkers reporting healthy    |
-|        `ConnectionTime`        |    Time to establish TCP connection (ms)    |
-|       `SSLHandshakeTime`       |   Time to complete SSL/TLS handshake (ms)   |
-|       `TimeToFirstByte`        | Time to receive first byte of response (ms) |
-+--------------------------------+---------------------------------------------+
+| Metric                         | Description                                 |
+| ------------------------------ | ------------------------------------------- |
+| `HealthCheckStatus`            | 1 = healthy, 0 = unhealthy                  |
+| `HealthCheckPercentageHealthy` | % of health checkers reporting healthy      |
+| `ConnectionTime`               | Time to establish TCP connection (ms)       |
+| `SSLHandshakeTime`             | Time to complete SSL/TLS handshake (ms)     |
+| `TimeToFirstByte`              | Time to receive first byte of response (ms) |
+
 
 ### Setting Up Alarms
 - Health check metrics are published to **us-east-1** region in CloudWatch
@@ -258,17 +248,16 @@ aws route53 get-health-check-count
 
 ## Important Constraints
 
-+---------------------------------------+----------------------------------------+
-|              Constraint               |                 Value                  |
-+---------------------------------------+----------------------------------------+
-|       Health checks per account       | 200 (soft limit, can request increase) |
-| Child health checks per calculated HC |                256 max                 |
-|       String search max length        |             255 characters             |
-|    String search max body scanned     |           First 5,120 bytes            |
-|       Minimum regions to select       |                   3                    |
-|  Health checkers are **outside VPC**  | Must use public IP for endpoint checks |
-|        Health check API region        |  Always `us-east-1` (global service)   |
-+---------------------------------------+----------------------------------------+
+| Constraint                            | Value                                  |
+| ------------------------------------- | -------------------------------------- |
+| Health checks per account             | 200 (soft limit, can request increase) |
+| Child health checks per calculated HC | 256 max                                |
+| String search max length              | 255 characters                         |
+| String search max body scanned        | First 5,120 bytes                      |
+| Minimum regions to select             | 3                                      |
+| Health checkers are **outside VPC**   | Must use public IP for endpoint checks |
+| Health check API region               | Always `us-east-1` (global service)    |
+
 
 ---
 
@@ -331,15 +320,14 @@ aws cloudwatch get-metric-statistics \
 
 ## Key Differences: Health Checks vs. ELB Health Checks
 
-+-------------+--------------------------------+-----------------------------------+
-|   Feature   |     Route 53 Health Checks     |         ELB Health Checks         |
-+-------------+--------------------------------+-----------------------------------+
-|    Scope    | Global (checks from worldwide) | Regional (checks from within VPC) |
-|   Purpose   |       DNS-level failover       |   Target group traffic routing    |
-|  Protocol   |        HTTP, HTTPS, TCP        |      HTTP, HTTPS, TCP, gRPC       |
-|  Location   |   External (public internet)   |          Internal (VPC)           |
-| Integration | DNS records, failover routing  |    Load balancer target groups    |
-+-------------+--------------------------------+-----------------------------------+
+| Feature     | Route 53 Health Checks         | ELB Health Checks                 |
+| ----------- | ------------------------------ | --------------------------------- |
+| Scope       | Global (checks from worldwide) | Regional (checks from within VPC) |
+| Purpose     | DNS-level failover             | Target group traffic routing      |
+| Protocol    | HTTP, HTTPS, TCP               | HTTP, HTTPS, TCP, gRPC            |
+| Location    | External (public internet)     | Internal (VPC)                    |
+| Integration | DNS records, failover routing  | Load balancer target groups       |
+
 
 ---
 

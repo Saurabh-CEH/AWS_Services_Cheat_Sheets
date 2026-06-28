@@ -19,15 +19,14 @@ Every VPC gets a built-in DNS resolver at the VPC's base IP + 2 (e.g., `10.0.0.2
 
 ## Architecture Components
 
-+-----------------------+---------------+---------------------------------------------------------------+
-|       Component       |   Direction   |                            Purpose                            |
-+-----------------------+---------------+---------------------------------------------------------------+
+| Component             | Direction     | Purpose                                                       |
+| --------------------- | ------------- | ------------------------------------------------------------- |
 | **Inbound Endpoint**  | On-prem → AWS | Allows on-prem DNS resolvers to forward queries into your VPC |
 | **Outbound Endpoint** | AWS → On-prem | Allows VPC Resolver to forward queries to on-prem DNS servers |
-| **Forwarding Rules**  |      N/A      |       Define which domain queries to forward and where        |
-|   **System Rules**    |      N/A      |          Auto-defined rules for AWS-internal domains          |
-|     **Profiles**      |      N/A      |       Manage DNS config centrally across VPCs/accounts        |
-+-----------------------+---------------+---------------------------------------------------------------+
+| **Forwarding Rules**  | N/A           | Define which domain queries to forward and where              |
+| **System Rules**      | N/A           | Auto-defined rules for AWS-internal domains                   |
+| **Profiles**          | N/A           | Manage DNS config centrally across VPCs/accounts              |
+
 
 ---
 
@@ -92,26 +91,24 @@ On-Premises DNS Server (10.1.1.53, 10.1.2.53)
 
 ## Endpoint Configuration Details
 
-+---------------------+---------------------------------------------------+
-|      Parameter      |                      Details                      |
-+---------------------+---------------------------------------------------+
-|  **IP Addresses**   | Minimum 2 per endpoint (for HA across AZs), max 6 |
-|    **Protocols**    |             IPv4, IPv6, or Dual-stack             |
-| **Security Groups** | Applied to endpoint ENIs (control who can query)  |
-|     **Subnets**     |   Recommend different AZs for high availability   |
-|       **ENI**       |    One ENI per IP address, created in your VPC    |
-+---------------------+---------------------------------------------------+
+| Parameter           | Details                                            |
+| ------------------- | -------------------------------------------------- |
+| **IP Addresses**    | Minimum 2 per endpoint (for HA across AZs), max 6 |
+| **Protocols**       | IPv4, IPv6, or Dual-stack                          |
+| **Security Groups** | Applied to endpoint ENIs (control who can query)   |
+| **Subnets**         | Recommend different AZs for high availability      |
+| **ENI**             | One ENI per IP address, created in your VPC        |
+
 
 ### Capacity & Scaling
 
-+---------------------------+-----------------------------------------------------+
-|          Metric           |                        Value                        |
-+---------------------------+-----------------------------------------------------+
+| Metric                    | Value                                               |
+| ------------------------- | --------------------------------------------------- |
 | Queries per second per IP | ~10,000 (max burst, sustained ~1,500-10,000 varies) |
-| Minimum IPs per endpoint  |                          2                          |
-| Maximum IPs per endpoint  |              6 (can request increase)               |
-|      Scale strategy       |        Add more IP addresses to the endpoint        |
-+---------------------------+-----------------------------------------------------+
+| Minimum IPs per endpoint  | 2                                                   |
+| Maximum IPs per endpoint  | 6 (can request increase)                            |
+| Scale strategy            | Add more IP addresses to the endpoint               |
+
 
 > Each IP creates an ENI that can handle DNS queries independently. Spread across AZs for fault tolerance.
 
@@ -121,13 +118,12 @@ On-Premises DNS Server (10.1.1.53, 10.1.2.53)
 
 ### Rule Types
 
-+---------------+-----------------------------------------------------------------+
-|     Type      |                           Description                           |
-+---------------+-----------------------------------------------------------------+
-|  **Forward**  |     Forward queries for this domain to specified target IPs     |
-|  **System**   | Override forwarding and resolve locally (use Route 53 Resolver) |
-| **Recursive** |      Default rule for "." (root) — resolves via public DNS      |
-+---------------+-----------------------------------------------------------------+
+| Type          | Description                                                     |
+| ------------- | --------------------------------------------------------------- |
+| **Forward**   | Forward queries for this domain to specified target IPs         |
+| **System**    | Override forwarding and resolve locally (use Route 53 Resolver) |
+| **Recursive** | Default rule for "." (root) — resolves via public DNS           |
+
 
 ### Rule Matching
 
@@ -337,35 +333,32 @@ aws ram create-resource-share \
 
 ### Inbound Endpoint Security Group
 
-+-----------+----------+------+------------------------+
-| Direction | Protocol | Port |         Source         |
-+-----------+----------+------+------------------------+
-|  Inbound  |   TCP    |  53  | On-prem DNS server IPs |
-|  Inbound  |   UDP    |  53  | On-prem DNS server IPs |
-+-----------+----------+------+------------------------+
+| Direction | Protocol | Port | Source                 |
+| --------- | -------- | ---- | ---------------------- |
+| Inbound   | TCP      | 53   | On-prem DNS server IPs |
+| Inbound   | UDP      | 53   | On-prem DNS server IPs |
+
 
 ### Outbound Endpoint Security Group
 
-+-----------+----------+------+------------------------+
-| Direction | Protocol | Port |      Destination       |
-+-----------+----------+------+------------------------+
-| Outbound  |   TCP    |  53  | On-prem DNS server IPs |
-| Outbound  |   UDP    |  53  | On-prem DNS server IPs |
-+-----------+----------+------+------------------------+
+| Direction | Protocol | Port | Destination            |
+| --------- | -------- | ---- | ---------------------- |
+| Outbound  | TCP      | 53   | On-prem DNS server IPs |
+| Outbound  | UDP      | 53   | On-prem DNS server IPs |
+
 
 ---
 
 ## Pricing
 
-+-------------------------------------+------------------------------------------------------------+
-|              Component              |                            Cost                            |
-+-------------------------------------+------------------------------------------------------------+
-|   Resolver endpoint (per ENI/IP)    |              $0.125/hour (~$90/month per IP)               |
-| DNS queries processed via endpoints |                 $0.40 per million queries                  |
-|            Query logging            | No charge (you pay for destination: CW Logs, S3, Firehose) |
-|              Profiles               |                    No additional charge                    |
-|        Default VPC Resolver         |                  Free (included with VPC)                  |
-+-------------------------------------+------------------------------------------------------------+
+| Component                           | Cost                                                       |
+| ----------------------------------- | ---------------------------------------------------------- |
+| Resolver endpoint (per ENI/IP)      | $0.125/hour (~$90/month per IP)                            |
+| DNS queries processed via endpoints | $0.40 per million queries                                  |
+| Query logging                       | No charge (you pay for destination: CW Logs, S3, Firehose) |
+| Profiles                            | No additional charge                                       |
+| Default VPC Resolver                | Free (included with VPC)                                   |
+
 
 **Minimum cost per endpoint:** 2 IPs × $0.125/hr = $0.25/hr = ~$180/month
 
@@ -375,35 +368,33 @@ aws ram create-resource-share \
 
 ## Quotas
 
-+------------------------------------+------------------------------------+
-|              Resource              |           Default Limit            |
-+------------------------------------+------------------------------------+
-|   Resolver endpoints per region    | 4 per direction (inbound/outbound) |
-|     IP addresses per endpoint      |             6 (min 2)              |
-|     Resolver rules per region      |               1,000                |
-|     Rules per VPC association      |                500                 |
-|   Target IPs per forwarding rule   |                 6                  |
-| VPCs per resolver rule association |             Unlimited              |
-|  Query logging configs per region  |                 20                 |
-|        Profiles per region         |     1 per account (soft limit)     |
-|       Resources per Profile        |           Varies by type           |
-+------------------------------------+------------------------------------+
+| Resource                           | Default Limit                      |
+| ---------------------------------- | ---------------------------------- |
+| Resolver endpoints per region      | 4 per direction (inbound/outbound) |
+| IP addresses per endpoint          | 6 (min 2)                          |
+| Resolver rules per region          | 1,000                              |
+| Rules per VPC association          | 500                                |
+| Target IPs per forwarding rule     | 6                                  |
+| VPCs per resolver rule association | Unlimited                          |
+| Query logging configs per region   | 20                                 |
+| Profiles per region                | 1 per account (soft limit)         |
+| Resources per Profile              | Varies by type                     |
+
 
 ---
 
 ## Troubleshooting
 
-+-----------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
-|                  Issue                  |                     Cause                     |                            Fix                            |
-+-----------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
-| On-prem can't resolve AWS private zones |    Inbound endpoint missing or SG blocking    |  Create inbound endpoint; allow port 53 from on-prem IPs  |
-|    VPC can't resolve on-prem domains    | No forwarding rule or outbound endpoint issue | Create rule + outbound endpoint; verify SG & route tables |
-|    Forwarding rule not taking effect    |         Rule not associated with VPC          |                Associate rule with the VPC                |
-|   AWS services failing after "." rule   |         amazonaws.com being forwarded         |            Add System rule for `amazonaws.com`            |
-|    Intermittent resolution failures     |              Single-AZ endpoint               |              Use 2+ IPs across different AZs              |
-|     Queries timing out via endpoint     |    Security group or NACL blocking port 53    |     Verify SG allows UDP/TCP 53 in correct direction      |
-|    Cross-account resolution failing     |      Rule not shared or accepted via RAM      |        Share via RAM and accept in target account         |
-+-----------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+| Issue                                   | Cause                                         | Fix                                                       |
+| --------------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| On-prem can't resolve AWS private zones | Inbound endpoint missing or SG blocking       | Create inbound endpoint; allow port 53 from on-prem IPs   |
+| VPC can't resolve on-prem domains       | No forwarding rule or outbound endpoint issue | Create rule + outbound endpoint; verify SG & route tables |
+| Forwarding rule not taking effect       | Rule not associated with VPC                  | Associate rule with the VPC                               |
+| AWS services failing after "." rule     | amazonaws.com being forwarded                 | Add System rule for `amazonaws.com`                       |
+| Intermittent resolution failures        | Single-AZ endpoint                            | Use 2+ IPs across different AZs                           |
+| Queries timing out via endpoint         | Security group or NACL blocking port 53       | Verify SG allows UDP/TCP 53 in correct direction          |
+| Cross-account resolution failing        | Rule not shared or accepted via RAM           | Share via RAM and accept in target account                |
+
 
 ---
 
