@@ -10,17 +10,16 @@ DNSSEC (Domain Name System Security Extensions) adds cryptographic signatures to
 
 ## Key Concepts
 
-+-----------------------------------+-------------------------------------------------------------------------------+
-|               Term                |                                  Description                                  |
-+-----------------------------------+-------------------------------------------------------------------------------+
-|     **KSK** (Key-Signing Key)     |   Signs the DNSKEY record set; backed by a customer-managed key in AWS KMS    |
-|    **ZSK** (Zone-Signing Key)     |  Signs all other record sets in the zone; managed automatically by Route 53   |
-| **DS Record** (Delegation Signer) |         Published in the parent zone to establish the chain of trust          |
-|             **RRSIG**             |            Cryptographic signature attached to each DNS record set            |
-|            **DNSKEY**             |     Public keys published in DNS (contains both KSK and ZSK public keys)      |
-|          **NSEC/NSEC3**           |      Authenticated denial of existence (proves a record does NOT exist)       |
-|        **Chain of Trust**         | Hierarchy from root → TLD → your zone, validated via DS records at each level |
-+-----------------------------------+-------------------------------------------------------------------------------+
+| Term                              | Description                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| **KSK** (Key-Signing Key)        | Signs the DNSKEY record set; backed by a customer-managed key in AWS KMS      |
+| **ZSK** (Zone-Signing Key)       | Signs all other record sets in the zone; managed automatically by Route 53    |
+| **DS Record** (Delegation Signer) | Published in the parent zone to establish the chain of trust                 |
+| **RRSIG**                         | Cryptographic signature attached to each DNS record set                      |
+| **DNSKEY**                        | Public keys published in DNS (contains both KSK and ZSK public keys)         |
+| **NSEC/NSEC3**                    | Authenticated denial of existence (proves a record does NOT exist)            |
+| **Chain of Trust**                | Hierarchy from root → TLD → your zone, validated via DS records at each level |
+
 
 ---
 
@@ -40,17 +39,16 @@ DNSSEC (Domain Name System Security Extensions) adds cryptographic signatures to
 
 ## Prerequisites & Requirements
 
-+---------------------------+------------------------------------------------------------------+
-|        Requirement        |                             Details                              |
-+---------------------------+------------------------------------------------------------------+
-|    **KMS Key Region**     |              Must be in **us-east-1** (N. Virginia)              |
-|     **KMS Key Type**      |  Asymmetric, ECC_NIST_P256 key spec (signing and verification)   |
-|    **KMS Permissions**    | Route 53 needs `kms:DescribeKey`, `kms:GetPublicKey`, `kms:Sign` |
-|   **Hosted Zone Type**    |              Public hosted zones only (not private)              |
-|   **Max KSKs per Zone**   |                                2                                 |
-| **Zone must be healthy**  |            Monitor zone availability before enabling             |
-| **Low TTL on NS records** |           Reduce TTL before enabling to minimize risk            |
-+---------------------------+------------------------------------------------------------------+
+| Requirement                | Details                                                            |
+| -------------------------- | ------------------------------------------------------------------ |
+| **KMS Key Region**         | Must be in **us-east-1** (N. Virginia)                             |
+| **KMS Key Type**           | Asymmetric, ECC_NIST_P256 key spec (signing and verification)      |
+| **KMS Permissions**        | Route 53 needs `kms:DescribeKey`, `kms:GetPublicKey`, `kms:Sign`   |
+| **Hosted Zone Type**       | Public hosted zones only (not private)                             |
+| **Max KSKs per Zone**      | 2                                                                  |
+| **Zone must be healthy**   | Monitor zone availability before enabling                          |
+| **Low TTL on NS records**  | Reduce TTL before enabling to minimize risk                        |
+
 
 ---
 
@@ -169,12 +167,11 @@ aws route53resolver list-resolver-dnssec-configs
 
 ### Critical Alarms (Set These Up BEFORE Enabling DNSSEC)
 
-+-------------------------------------+-------------+---------------------------------------------+
-|               Metric                |  Namespace  |                 Description                 |
-+-------------------------------------+-------------+---------------------------------------------+
-|       `DNSSECInternalFailure`       | AWS/Route53 | Route 53 internal error with DNSSEC signing |
-| `DNSSECKeySigningKeysNeedingAction` | AWS/Route53 |   KSK needs attention (rotation, expiry)    |
-+-------------------------------------+-------------+---------------------------------------------+
+| Metric                                | Namespace   | Description                                 |
+| ------------------------------------- | ----------- | ------------------------------------------- |
+| `DNSSECInternalFailure`               | AWS/Route53 | Route 53 internal error with DNSSEC signing |
+| `DNSSECKeySigningKeysNeedingAction`   | AWS/Route53 | KSK needs attention (rotation, expiry)      |
+
 
 ```bash
 # Create alarm for DNSSEC internal failures
@@ -209,23 +206,22 @@ aws cloudwatch put-metric-alarm \
 
 ## Common Issues & Troubleshooting
 
-+-------------------------------------------+---------------------------------------------+-----------------------------------------------+
-|                   Issue                   |                    Cause                    |                      Fix                      |
-+-------------------------------------------+---------------------------------------------+-----------------------------------------------+
-|  Zone becomes unreachable after enabling  |  DS record added before signing was active  |       Enable signing first, then add DS       |
-|            SERVFAIL responses             | Signatures invalid or chain of trust broken |     Check KSK status, verify DS at parent     |
-| `DNSSECKeySigningKeysNeedingAction` alarm |     KSK needs rotation or KMS key issue     |       Check KMS key status, rotate KSK        |
-|           Cannot disable DNSSEC           |      DS record still present at parent      |  Remove DS first, wait for TTL, then disable  |
-|         KMS key deleted/disabled          |              Signing will fail              | Restore KMS key immediately or create new KSK |
-+-------------------------------------------+---------------------------------------------+-----------------------------------------------+
+| Issue                                     | Cause                                       | Fix                                           |
+| ----------------------------------------- | ------------------------------------------- | --------------------------------------------- |
+| Zone becomes unreachable after enabling   | DS record added before signing was active   | Enable signing first, then add DS             |
+| SERVFAIL responses                        | Signatures invalid or chain of trust broken | Check KSK status, verify DS at parent         |
+| `DNSSECKeySigningKeysNeedingAction` alarm | KSK needs rotation or KMS key issue         | Check KMS key status, rotate KSK              |
+| Cannot disable DNSSEC                     | DS record still present at parent           | Remove DS first, wait for TTL, then disable   |
+| KMS key deleted/disabled                  | Signing will fail                           | Restore KMS key immediately or create new KSK |
+
 
 ---
 
 ## Limitations
 
-+------------------------------+-------------------------------------------------------------+
+
 |          Limitation          |                           Details                           |
-+------------------------------+-------------------------------------------------------------+
+------------------------------|-------------------------------------------------------------
 |   Public hosted zones only   |              Cannot sign private hosted zones               |
 | KMS key must be in us-east-1 |          Even if hosted zone serves global traffic          |
 |     Max 2 KSKs per zone      |              Designed for rotation (old + new)              |
@@ -233,7 +229,7 @@ aws cloudwatch put-metric-alarm \
 |  Not all resolvers validate  |       Only DNSSEC-aware resolvers perform validation        |
 |    Response size increase    |     DNSSEC adds RRSIG records, increasing response size     |
 |        NSEC vs NSEC3         | Route 53 uses NSEC (reveals zone contents via zone walking) |
-+------------------------------+-------------------------------------------------------------+
+
 
 ---
 
@@ -251,13 +247,13 @@ aws cloudwatch put-metric-alarm \
 
 ## Pricing
 
-+-------------------+--------------------------------------------------------------+
+
 |       Item        |                             Cost                             |
-+-------------------+--------------------------------------------------------------+
+-------------------|--------------------------------------------------------------
 |  DNSSEC signing   |               No additional charge for signing               |
 |      KMS key      | Standard KMS pricing applies (~$1/month per key + API calls) |
 | DNSSEC validation |                     No additional charge                     |
-+-------------------+--------------------------------------------------------------+
+
 
 > The main cost is the KMS asymmetric key in us-east-1.
 
