@@ -10,16 +10,15 @@ Route 53 Resolver DNS Firewall filters and regulates outbound DNS traffic from y
 
 ## Core Concepts
 
-+--------------------------+---------------------------------------------------------------------------+
-|        Component         |                                Description                                |
-+--------------------------+---------------------------------------------------------------------------+
-|     **Domain List**      |   A collection of domain names to match against (custom or AWS-managed)   |
-|         **Rule**         |     Matches a domain list + specifies an action (ALLOW, BLOCK, ALERT)     |
-|      **Rule Group**      |                A named collection of rules with priorities                |
-|   **VPC Association**    |              Links a rule group to a VPC, enabling filtering              |
-|       **Priority**       | Numeric value determining rule evaluation order (lower = evaluated first) |
-| **Managed Domain Lists** |            AWS-curated lists of known malicious domains (free)            |
-+--------------------------+---------------------------------------------------------------------------+
+| Component              | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| **Domain List**        | A collection of domain names to match against (custom or AWS-managed)   |
+| **Rule**               | Matches a domain list + specifies an action (ALLOW, BLOCK, ALERT)       |
+| **Rule Group**         | A named collection of rules with priorities                             |
+| **VPC Association**    | Links a rule group to a VPC, enabling filtering                         |
+| **Priority**           | Numeric value determining rule evaluation order (lower = evaluated first)|
+| **Managed Domain Lists** | AWS-curated lists of known malicious domains (free)                   |
+
 
 ---
 
