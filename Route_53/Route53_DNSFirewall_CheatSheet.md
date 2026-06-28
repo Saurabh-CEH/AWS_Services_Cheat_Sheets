@@ -406,14 +406,15 @@ aws route53resolver associate-resolver-query-log-config \
 ## Troubleshooting
 
 
-|               Issue               |                               Cause                               |                                 Fix                                  |
------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------+
-|    Legitimate domains blocked     |            Overly broad domain list or priority issue             | Check rule priority order; add ALLOW rule with lower priority number |
-|         Block not working         | Rule group not associated with VPC, or higher-priority ALLOW rule |              Verify association; check rule priorities               |
-|       Inconsistent blocking       |                   Domain list propagation delay                   |         Wait a few minutes; changes propagate asynchronously         |
-| Query log missing firewall fields |               Query logging not associated with VPC               |               Associate query log config with the VPC                |
-|        All queries failing        |             Fail-closed mode + firewall service issue             |          Switch to fail-open or investigate firewall health          |
-|     Advanced rules not firing     |             Advanced not enabled or wrong threat type             |             Verify rule configuration for DGA/tunneling              |
+| Issue                             | Cause                                                            | Fix                                                                  |
+| --------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Legitimate domains blocked        | Overly broad domain list or priority issue                       | Check rule priority order; add ALLOW rule with lower priority number |
+| Block not working                 | Rule group not associated with VPC, or higher-priority ALLOW rule | Verify association; check rule priorities                            |
+| Inconsistent blocking             | Domain list propagation delay                                    | Wait a few minutes; changes propagate asynchronously                 |
+| Query log missing firewall fields | Query logging not associated with VPC                            | Associate query log config with the VPC                              |
+| All queries failing               | Fail-closed mode + firewall service issue                        | Switch to fail-open or investigate firewall health                   |
+| Advanced rules not firing         | Advanced not enabled or wrong threat type                        | Verify rule configuration for DGA/tunneling                          |
+
 
 
 ---
