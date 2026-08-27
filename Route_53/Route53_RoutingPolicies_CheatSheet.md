@@ -519,6 +519,23 @@ Alias records are a Route 53-specific extension that route traffic to AWS resour
 
 ---
 
+## Gotchas & Caveats
+
+1. **Simple routing can't use health checks** — if you need failover, use Failover/Weighted/Latency with health checks, not Simple.
+2. **Weighted with weight 0 disables that record** — but if *all* records in a group are 0, Route 53 returns them all equally (surprising default).
+3. **Latency routing is based on AWS network latency, not geography** — the "lowest latency" region can differ from the closest country; don't confuse it with Geolocation.
+4. **Geolocation needs a default/`*` location** — queries from unmapped locations get no answer unless you configure a default record.
+5. **Geoproximity requires Traffic Flow** — it's only configurable via traffic policies, not plain record sets; the bias value shifts the boundary.
+6. **Client subnet isn't always visible** — geolocation uses the resolver's IP (EDNS Client Subnet helps but isn't universal), so a user behind a distant resolver may be misrouted.
+7. **Multivalue answer is not a load balancer** — it returns up to 8 healthy records at random; client behavior (caching, first-answer selection) determines actual distribution.
+8. **Failover requires health checks on the primary** — without them, Route 53 can't know to fail over.
+9. **All records in a routing group must share name + type** — you can't mix an A and CNAME in the same weighted group, etc.
+10. **Alias records to AWS resources are free** and can be health-check evaluated (EvaluateTargetHealth), but CNAMEs can't sit at the zone apex — use alias there.
+11. **TTL + client caching delays failover** — a high TTL means clients keep hitting the failed endpoint after Route 53 flips; lower TTL before changes.
+12. **IP-based routing needs a CIDR collection** — it maps client CIDRs to endpoints; unmapped CIDRs fall through to other logic/default.
+
+---
+
 ## Useful Links
 
 - [Choosing a Routing Policy](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy.html)

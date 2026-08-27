@@ -233,6 +233,22 @@ aws cloudwatch put-metric-alarm \
 
 ---
 
+## Gotchas & Caveats
+
+1. **A bad DS record breaks the whole zone** — if the DS at the parent doesn't match your KSK, validating resolvers return SERVFAIL for *everything* in the zone. This is the #1 DNSSEC outage cause.
+2. **Insertion/removal order matters** — when enabling, establish signing FIRST, then add the DS at the parent. When disabling, remove the DS at the parent FIRST and wait for TTL, then disable signing. Getting the order wrong causes outages.
+3. **KSK requires a KMS key in `us-east-1`** with asymmetric ECC_NIST_P256 (ECDSA) — a wrong key type/region won't work.
+4. **The KMS key must allow the Route 53 service principal** — missing key policy permissions cause signing failures.
+5. **Parent-zone TTL governs safe rollback** — you must wait out the DS record's TTL (and NS TTL) before removing signing, or cached DS entries keep failing.
+6. **Not all registrars/TLDs support DS records** — if the parent won't accept a DS, you cannot complete the chain of trust.
+7. **Disabling KMS key or losing access breaks signing** — treat the KSK's KMS key as critical; deletion is catastrophic.
+8. **DNSSEC does not encrypt DNS** — it provides authentication/integrity only, not confidentiality.
+9. **Larger responses** — signed responses are bigger; rare edge cases with restrictive middleboxes/UDP can cause fragmentation issues.
+10. **Key rollover isn't fully automatic for the KSK/DS** — plan rollovers carefully; the DS at the parent must stay in sync.
+11. **Alarms must exist before enabling** — `DNSSECInternalFailure` and `DNSSECKeySigningKeysNeedingAction` are your only early warning of signing problems.
+
+---
+
 ## Best Practices
 
 1. **Always set up CloudWatch alarms before enabling** - `DNSSECInternalFailure` and `DNSSECKeySigningKeysNeedingAction`

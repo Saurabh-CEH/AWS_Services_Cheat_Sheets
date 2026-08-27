@@ -244,6 +244,21 @@ Total cost = [$0.75 (first 100 VPCs) + (100 additional VPCs × $0.0014)] × (24 
 
 ---
 
+## Gotchas & Caveats
+
+1. **A VPC can be associated with only one Profile** — you cannot stack multiple Profiles on the same VPC; consolidate resources into one Profile.
+2. **Profiles are shared via RAM** — the consumer account must accept the share AND associate the Profile to its VPCs; sharing alone does nothing.
+3. **Profile-level settings can conflict with per-VPC settings** — e.g., DNS Firewall fail-open/closed and resolver configs; understand precedence before assuming a Profile value wins.
+4. **Adding a resource to a Profile applies it to every associated VPC** — a change has broad blast radius across all accounts/VPCs using the Profile.
+5. **Not every Route 53 resource type is Profile-eligible** — Profiles group PHZs, Resolver rules, and DNS Firewall rule groups; verify a resource is supported before expecting it to propagate.
+6. **PHZ authorization still matters cross-account** — associating a PHZ across accounts may need the usual authorization/association steps in addition to the Profile.
+7. **Region-scoped** — Profiles and their associations are per-region; a multi-region deployment needs Profiles per region.
+8. **Removing a resource from a Profile removes it everywhere** — be careful; it de-applies from all associated VPCs at once.
+9. **Overlapping resolver rules across Profile + direct associations** can create the same ambiguity as standalone rules (duplicate domain associations fail).
+10. **Quotas apply to Profile contents and associations** — large fan-outs can hit limits; plan around per-Profile and per-VPC caps.
+
+---
+
 ## Best Practices
 
 1. **Use Profiles for multi-account environments** — Centralizes DNS management and ensures consistency

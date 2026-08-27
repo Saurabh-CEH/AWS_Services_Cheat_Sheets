@@ -398,6 +398,23 @@ aws ram create-resource-share \
 
 ---
 
+## Gotchas & Caveats
+
+1. **Each endpoint IP handles a hard cap of queries per second** (~10,000 QPS per ENI) — high-volume workloads need multiple IPs; a single IP silently throttles under load.
+2. **Endpoints need 2+ IPs in different AZs** — a single-AZ endpoint is a resolution single point of failure.
+3. **Inbound and outbound endpoints are separate** — inbound = on-prem → AWS; outbound = AWS → on-prem/external. You often need both for bidirectional hybrid DNS.
+4. **Forwarding rules can't overlap ambiguously** — you can't associate two rules for the same exact domain (including `.`) to one VPC; association fails.
+5. **The `.` (root) system rule vs a forwarding rule** — forwarding everything (`.`) overrides default AWS resolution; misuse breaks resolution of AWS/public names.
+6. **Security groups on the endpoint ENIs must allow DNS (UDP/TCP 53)** — a missing rule causes silent resolution timeouts, not obvious errors.
+7. **Outbound endpoint forwards to target IPs you specify** — if the on-prem DNS server IP/firewall isn't reachable, queries time out; there's no automatic fallback.
+8. **Resolver endpoints cost per ENI per hour + per query** — idle endpoints still bill hourly.
+9. **Rules shared via RAM must be associated in the consumer account** — sharing alone doesn't apply them; the consumer must associate to a VPC.
+10. **Conditional forwarding is domain-based, not record-based** — you forward whole namespaces, not individual records.
+11. **DNS64/NAT64 and some special cases** interact with Resolver behavior — verify for IPv6-only subnets.
+12. **VPC `enableDnsSupport`/`enableDnsHostnames` must be on** — Resolver features depend on VPC DNS attributes being enabled.
+
+---
+
 ## Best Practices
 
 1. **Always use 2+ IPs across different AZs** for endpoint high availability

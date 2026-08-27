@@ -322,6 +322,23 @@ aws route53 test-dns-answer \
 
 ---
 
+## Gotchas & Caveats
+
+1. **Each public hosted zone gets a unique NS set** — deleting and recreating a zone (even same name) assigns NEW name servers; you must update the registrar/delegation or resolution breaks.
+2. **You can't put a CNAME at the zone apex** — use an Alias record for the apex (`example.com`); CNAME apex is invalid DNS.
+3. **Public and private zones with the same name = split-horizon** — inside associated VPCs the private zone wins; outside, the public zone answers. Misunderstanding this causes "works internally, fails externally" confusion.
+4. **A private hosted zone only resolves in associated VPCs** with DNS attributes enabled — no association = no resolution.
+5. **Cross-account PHZ association is a two-step dance** — create authorization in the zone owner account, then associate from the VPC owner account; one step alone fails.
+6. **Overlapping private zones** (e.g., `example.com` and `sub.example.com` both private) resolve by most-specific match — subtle precedence bugs result.
+7. **Reusable delegation sets must be requested/used at creation** — you can't retrofit a fixed NS set onto an existing zone; plan for it up front.
+8. **Deleting a zone requires removing all non-default records first** — you can't delete a zone that still has custom RRSets.
+9. **Alias to certain targets is free, but alias EvaluateTargetHealth behavior varies** by target type — verify health evaluation is supported for your target.
+10. **Changes propagate globally but not instantly** — `INSYNC` status means Route 53 accepted the change; client caches (TTL) still serve old data until expiry.
+11. **RRSet-per-zone and VPC-per-zone limits** are adjustable but real — very large zones or many VPC associations need quota increases.
+12. **Registrar NS must match the hosted zone NS** — a common outage is editing records in Route 53 while the domain still delegates to a different provider's name servers.
+
+---
+
 ## Best Practices
 
 1. **Lower TTL before making changes** — Reduce TTL to 60s hours before a migration, then restore after

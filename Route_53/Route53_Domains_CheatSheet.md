@@ -339,6 +339,23 @@ Route 53 supports 300+ TLDs including:
 
 ---
 
+## Gotchas & Caveats
+
+1. **Transfer lock blocks transfers out** — you must disable it before transferring a domain away; forgetting this stalls transfers.
+2. **EPP/auth codes expire** — an old authorization code will be rejected by the gaining registrar; request a fresh one close to the transfer.
+3. **Transfers can take 5–7+ days** — and require the admin/registrant email to approve; a stale WHOIS email can silently block the transfer.
+4. **Recently registered/transferred domains are locked for 60 days** (ICANN rule) — you cannot transfer again within 60 days of registration or a prior transfer.
+5. **Registering/renewing does not auto-configure DNS delegation** — you must ensure the domain's name servers point to your intended hosted zone.
+6. **Updating name servers is separate from the hosted zone** — changing NS at the registrar (or via `UpdateDomainNameservers`) is what actually delegates; editing the zone alone doesn't.
+7. **`UPDATE_NAMESERVER` / contact-update operations can get stuck IN_PROGRESS** — TLD registry delays happen; production outages result if you removed working NS prematurely.
+8. **WHOIS privacy support varies by TLD** — some TLDs/ccTLDs don't allow privacy protection or require public registrant data.
+9. **Auto-renew is on by default** — disabling it risks expiration; expired domains enter redemption with steep recovery fees.
+10. **Not all TLDs are supported for registration/transfer** in Route 53 — check the supported-TLD list before promising a migration.
+11. **Contact-info validation can suspend a domain** — invalid/unverified registrant email can lead to suspension per ICANN requirements.
+12. **Domain registration ≠ hosted zone** — deleting a hosted zone doesn't release the domain, and vice versa; they're billed and managed separately.
+
+---
+
 ## Best Practices
 
 1. **Enable transfer lock** — Prevents unauthorized domain transfers (social engineering attacks)

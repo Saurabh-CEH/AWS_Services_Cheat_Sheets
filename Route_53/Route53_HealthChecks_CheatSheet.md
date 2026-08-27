@@ -303,6 +303,23 @@ aws cloudwatch get-metric-statistics \
 
 ---
 
+## Gotchas & Caveats
+
+1. **Health checkers come from many AWS IP ranges** — your firewall/security group must allow the Route 53 health-checker CIDRs, or checks fail with a healthy endpoint. Use the published ranges (or the `ROUTE53_HEALTHCHECKS` service in AWS IP ranges).
+2. **Health is "healthy" by majority vote** — multiple checkers evaluate; an endpoint is unhealthy only when enough checkers agree. A single-region blip may not flip status.
+3. **HTTPS health checks don't validate the certificate chain** — they check TLS handshake + response, not cert validity/expiry. Expired certs can still read "healthy."
+4. **String matching only inspects the first 5,120 bytes** of the response body — content past that is not matched.
+5. **Endpoints must be public for standard endpoint checks** — you cannot directly health-check a private IP; use a CloudWatch-alarm health check or calculated health check instead.
+6. **Calculated health checks depend on child checks** — if children are misconfigured, the parent silently reflects wrong status.
+7. **CloudWatch-alarm health checks invert intuition** — INSUFFICIENT_DATA handling matters; decide whether missing data means healthy or unhealthy.
+8. **Health checks bill per check + extra for HTTPS/string matching/fast interval** — many checks add up; and non-AWS endpoints cost more.
+9. **Fast interval (10s) reaches unhealthy faster but is noisier** and pricier — 30s is the default for a reason.
+10. **Failover routing needs health checks on the PRIMARY** — a secondary without proper primary health evaluation won't fail over.
+11. **A health check evaluates one endpoint** — for an ALB/NLB behind DNS, you typically health-check the load balancer target, not each instance.
+12. **Latency to the endpoint from checker regions varies** — an endpoint healthy from one region may time out from another; use enough regions.
+
+---
+
 ## Best Practices
 
 1. **Use multiple health check regions** for critical resources to reduce impact of regional outages

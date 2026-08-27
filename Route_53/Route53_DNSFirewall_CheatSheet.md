@@ -419,6 +419,23 @@ aws route53resolver associate-resolver-query-log-config \
 
 ---
 
+## Gotchas & Caveats
+
+1. **A bare domain matches the domain AND all subdomains** — `example.com` in a list also blocks `www.example.com`, `a.b.example.com`. This is *not* standard DNS wildcard behavior and surprises people.
+2. **`*.example.com` does NOT match `example.com` itself** — only subdomains. To cover both, add the bare domain too.
+3. **Default is fail-OPEN / allow** — if no rule matches, the query is allowed. An allowlist requires an explicit catch-all `*` BLOCK at the highest priority number.
+4. **Fail-closed can cause outages** — if you set the VPC to fail-closed and the firewall has issues, all DNS resolution stops. Choose deliberately.
+5. **Only filters outbound DNS from the VPC Resolver** — it does not inspect DNS that bypasses the Resolver (e.g., hardcoded external resolvers, DoH to a third party over 443).
+6. **Domain list changes propagate asynchronously** — a few minutes of inconsistency is normal after add/remove; don't assume instant enforcement.
+7. **Rule group + rule priority both matter** — lowest number first at each level; a low-priority ALLOW anywhere can short-circuit later BLOCKs.
+8. **ALERT never terminates** — it logs and continues; it does not stop evaluation like ALLOW/BLOCK.
+9. **Managed domain lists are free but opaque** — you can't see or edit their contents; you can only reference them.
+10. **Advanced (DGA/tunneling) detection is a separate, paid capability** — static lists won't catch behavioral threats.
+11. **5 rule-group associations and 500 total rules per VPC** are hard-ish limits — plan rule-group design around them.
+12. **BLOCK with OVERRIDE returns a DNS answer you choose** — misconfiguring the override (wrong type/TTL) can break clients expecting a specific record.
+
+---
+
 ## Best Practices
 
 1. **Start with ALERT before BLOCK** — Monitor matches before enforcing blocks to avoid disrupting legitimate traffic

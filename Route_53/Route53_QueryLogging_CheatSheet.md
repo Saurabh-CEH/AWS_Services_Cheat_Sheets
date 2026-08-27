@@ -388,6 +388,23 @@ Files are gzip-compressed JSON, delivered every few minutes.
 
 ---
 
+## Gotchas & Caveats
+
+1. **Resolver query logging only captures queries via the VPC Resolver** — queries to third-party resolvers, or that bypass the Resolver, are not logged.
+2. **It logs VPC (Resolver) queries — not public hosted zone queries** — public HZ query logging is a separate feature with its own config (CloudWatch Logs in us-east-1).
+3. **Public hosted zone query logging must be created in `us-east-1`** — the CloudWatch log group lives there regardless of where the zone's traffic originates.
+4. **A resource policy / permissions on the destination is required** — CloudWatch Logs, S3, or Firehose must permit Route 53 to write, or logs silently never arrive.
+5. **One query log config per VPC association model** — associating/disassociating controls which VPCs are logged; forgetting to associate = no data.
+6. **Logs are not instantaneous** — expect a short delivery delay; "no logs yet" isn't the same as "not resolving."
+7. **High-volume VPCs generate large log volume/cost** — DNS is chatty; budget for ingestion/storage or filter downstream.
+8. **Log fields differ by destination** and by feature (Resolver vs DNS Firewall fields) — Athena/Insights schemas must match the actual format.
+9. **DNS Firewall actions appear in Resolver query logs** — but only if query logging is associated with the same VPC.
+10. **Changing the destination doesn't backfill** — historical queries aren't re-delivered to a new target.
+11. **S3 delivery partitions by time/path** — set up Athena partitions for efficient queries or scans get expensive.
+12. **Query logging shows what was asked, not always the answer detail** — for full response/latency analysis you may need additional tooling.
+
+---
+
 ## Best Practices
 
 1. **Use CloudWatch Logs for security monitoring** — Near real-time visibility for threat detection
