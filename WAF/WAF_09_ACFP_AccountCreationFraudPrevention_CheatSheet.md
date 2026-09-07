@@ -84,13 +84,28 @@ Same mechanism and constraints as ATP — reads the origin's sign-up result to k
 
 ## ACFP Labels
 
-| Label (representative)                                              | Meaning                             |
-| ------------------------------------------------------------------ | ----------------------------------- |
-| `awswaf:managed:aws:acfp:signal:credential_compromised`            | Compromised credential at sign-up   |
-| `awswaf:managed:aws:acfp:signal:volumetric_*`                      | Volumetric registration signal      |
-| `awswaf:managed:aws:acfp:aggregate:*`                              | Aggregated abuse signals            |
-| `awswaf:managed:aws:acfp:signal:automated_browser`                 | Automated browser at sign-up        |
-| `awswaf:managed:token:absent` / `rejected`                          | Token state                         |
+All labels use the prefix `awswaf:managed:aws:acfp:`. Each rule adds a descriptive label **and** a `<RuleName>` label.
+
+| Label (representative)                                                          | Meaning                             |
+| ------------------------------------------------------------------------------- | ----------------------------------- |
+| `...:signal:credential_compromised`                                             | Stolen credentials at sign-up       |
+| `...:signal:missing_credential`                                                 | Sign-up missing credentials (no action) |
+| `...:risk_score:high` / `:medium` / `:low`                                      | Risk-score evaluation (only `high` blocks) |
+| `...:risk_score:evaluation_failed`                                              | Risk score couldn't be computed     |
+| `...:risk_score:contributor:*`                                                  | Per-contributor status (IP reputation, stolen creds, …) |
+| `...:signal:automated_browser`                                                  | Automated browser at sign-up        |
+| `...:signal:browser_inconsistency`                                              | Inconsistent browser interrogation  |
+| `...:signal:client:human_interactivity:low/medium/high` / `:insufficient_data`  | Human-interactivity level           |
+| `...:signal:form_detected`                                                      | An HTML form was present            |
+| `...:aggregate:volumetric:ip:creation:high/medium/low`                          | Creation rate per IP                |
+| `...:aggregate:volumetric:session:creation:high/medium/low`                     | Creation rate per session           |
+| `...:aggregate:attribute:username_traversal:creation:high/medium/low`           | Username cycling at sign-up         |
+| `...:aggregate:volumetric:phone_number:high/medium/low`                         | Same phone number volume            |
+| `...:aggregate:volumetric:address:high/medium/low`                              | Same physical address volume        |
+| `...:aggregate:volumetric:ip:successful_creation_response:*` / `failed_creation_response:*` | Creation-response counts per IP (CloudFront) |
+| `...:aggregate:volumetric:session:successful_creation_response:*` / `failed_creation_response:*` | Same, per session (CloudFront) |
+| `...:aggregate:volumetric:session:creation:token_reuse:ip`                      | One token across >5 IPs             |
+| `awswaf:managed:token:absent` / `rejected`                                      | Token state (see CAPTCHA & Challenge sheet) |
 
 ```
 Priority 30:  ACFP rule group        (adds labels)
@@ -100,18 +115,48 @@ Priority 32:  Challenge → LabelMatch acfp:signal:automated_browser
 
 ---
 
-## Rules Inside the ACFP Group (examples)
+## Rules Inside the ACFP Group (`AWSManagedRulesACFPRuleSet`, WCU 50)
 
-| Rule name                          | Action tendency | Purpose                                      |
-| ---------------------------------- | --------------- | -------------------------------------------- |
-| `VolumetricIpHigh`                 | Block/Challenge | Excessive sign-ups per IP                    |
-| `VolumetricSession`                | Challenge       | Excessive sign-ups per session               |
-| `AttributeCompromisedCredentials`  | Block           | Breached email/password at sign-up           |
-| `AttributeUsernameTraversal`       | Block           | Username field manipulation                  |
-| `RiskScore*` / ML signals          | Varies          | Coordinated fraud detection                  |
-| `MissingCredential`                | Block/Count     | Malformed sign-up request                    |
+Complete rule listing (latest static version). **All rules require a token except `UnsupportedCognitoIDP` and `AllRequests`.** **R** = response-inspection rule, **CloudFront only** (not evaluated over HTTP/3 QUIC). Note the mix of **Block**, **CAPTCHA**, and **Challenge** default actions.
 
-> **Gotcha:** ACFP includes **token-dependent** rules. Without the JS/Mobile SDK, legitimate sign-ups may be treated as token-absent and challenged/blocked.
+| Rule name                          | Action     | Trigger / threshold                                                       | R |
+| ---------------------------------- | ---------- | ------------------------------------------------------------------------- | - |
+| `UnsupportedCognitoIDP`            | Block      | Traffic to a Cognito user pool (ACFP unsupported there)                   |   |
+| `AllRequests`                      | **Challenge** | Every request to the **registration page path** — forces token acquisition **before** other rules run |   |
+| `RiskScoreHigh`                    | Block      | Highly suspicious IP/other factors (also emits medium/low + `contributor:` labels; `risk_score:evaluation_failed` if it can't score) |   |
+| `SignalCredentialCompromised`      | Block      | Sign-up uses **stolen credentials** (also labels `missing_credential`, no action) |   |
+| `SignalClientHumanInteractivityAbsentLow` | **CAPTCHA** | Abnormally **low human interactivity** (mouse/keys/form) — SDK required; creation path only |   |
+| `AutomatedBrowser`                 | Block      | Indicators the client browser is **automated**                           |   |
+| `BrowserInconsistency`             | **CAPTCHA** | Inconsistent browser interrogation data                                  |   |
+| `VolumetricIpHigh`                 | **CAPTCHA** | **>20 creation requests / IP / 10 min** (medium >15, low >10 — no action) |   |
+| `VolumetricSessionHigh`            | Block      | **>10 creation requests / session / 30 min** (medium >5, low >1)         |   |
+| `AttributeUsernameTraversalHigh`   | Block      | **>10 different usernames / session / 30 min** (medium >5, low >1)       |   |
+| `VolumetricPhoneNumberHigh`        | Block      | **>10 sign-ups with same phone / 30 min** (medium >5, low >1)            |   |
+| `VolumetricAddressHigh`            | Block      | **>100 sign-ups with same address / 30 min**                             |   |
+| `VolumetricAddressLow`             | **CAPTCHA** | Same address: **medium >50**, **low >10** / 30 min                       |   |
+| `VolumetricIPSuccessfulResponse`   | Block      | **>10 successful creations / IP / 10 min** (lower threshold than VolumetricIpHigh; from response) | ✓ |
+| `VolumetricSessionSuccessfulResponse` | Block   | **>1 successful creation / session / 30 min** (from response; also medium/high + failed labels) | ✓ |
+| `VolumetricSessionTokenReuseIp`    | Block      | One token used across **>5 distinct IPs**                                |   |
+
+**Response-inspection rules (R)** inspect up to the first **64 KB** of the response body/JSON and emit medium/low **successful** and **failed** creation-response labels (no action) for custom rules; CloudFront only.
+
+> **Gotcha:** Because almost every ACFP rule needs a **token**, deploy the **JS/Mobile SDK** (or let `AllRequests` Challenge mint one on the registration page). The human-interactivity rule needs the SDK to capture mouse/keyboard/form signals — without it, that rule can't evaluate.
+
+> Rule details rephrased from [AWS WAF Fraud Control ACFP rule group](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-acfp.html) for compliance with licensing restrictions.
+
+---
+
+## Rules & Features Added by Version
+
+ACFP is **versioned** (default vs latest static version can differ — pin in production, verify with `describe-managed-rule-group` and the [changelog](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html)):
+
+| Version / date            | Change                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| **1.1** (2024-09-13)      | Labeling update — every rule now applies a `awswaf:managed:aws:acfp:<RuleName>` label            |
+| **1.0** (2024-05-29)      | Rule group became **versioned** (behavior unchanged); default set to 1.0                        |
+| 2023-06-13                | **Initial release** of `AWSManagedRulesACFPRuleSet`                                             |
+
+> ACFP is the newest of the three intelligent-threat groups. Unlike Bot Control, ATP/ACFP have not added new *named* rules since launch — changes have been labeling/versioning. Track the changelog for future rule additions.
 
 ---
 

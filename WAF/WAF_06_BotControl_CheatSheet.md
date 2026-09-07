@@ -6,6 +6,8 @@
 
 **Key point:** Bot Control does **not** block by default across the board — most of its detection rules are designed to be paired with **labels** and your own label-match rules, or run at their built-in actions. You control cost and behavior with **inspection level**, **scope-down**, and **rule action overrides**.
 
+> **Recent additions (verify current version/Region):** Bot Control now also offers **Web Bot Authentication (WBA)** — cryptographic verification of AI agents/crawlers (v4.0+), **AI traffic monetization** — the **Monetize** action that charges AI bots via HTTP 402 (CloudFront only), and an **AI activity dashboard** for visibility into AI bot/agent traffic. The rule group's static version has expanded bot categories over time (e.g. **v6.1**). These are covered below.
+
 ---
 
 ## Inspection Levels
@@ -31,6 +33,18 @@ Bot Control has two levels, set in `ManagedRuleGroupConfigs`:
 
 > **Gotcha:** TARGETED includes rules that issue silent **Challenge** and **CAPTCHA** actions and rely on a WAF **token**. Without the JavaScript/Mobile SDK integration, legitimate clients that can't run the challenge (APIs, some SPAs, native apps) may get blocked or loop.
 
+### Machine learning (`EnableMachineLearning`)
+
+At the **TARGETED** level, ML-based analysis is **enabled by default** (`EnableMachineLearning: true`). AWS uses website traffic statistics (timestamps, browser characteristics, previous URL) to build a model that powers the `TGT_ML_CoordinatedActivity*` rules.
+
+```json
+{ "AWSManagedRulesBotControlRuleSet": { "InspectionLevel": "TARGETED", "EnableMachineLearning": false } }
+```
+
+- **ML is required** for `TGT_ML_CoordinatedActivityLow/Medium` (and High) — disabling it turns those rules off.
+- Set `EnableMachineLearning: false` to **opt out** (e.g., for privacy/latency or if the ML rules cause false positives you can't tune).
+- Applies **only** to TARGETED; COMMON has no ML.
+
 ---
 
 ## Rule Categories Inside the Group
@@ -47,7 +61,10 @@ Most COMMON category/signal rules apply their action **only to unverified bots**
 | `CategorySocialMedia`              | Block               | Social-media content-summary bots                           |
 | `CategoryAI`                       | Block (all matches) | AI bots — **applies to verified and unverified alike**      |
 | `CategoryContentFetcher`           | Block               | Fetches content on behalf of a user (RSS, validation)       |
-| `CategorySecurity` / `CategorySeo` / `CategoryMonitoring` / `CategoryArchiver` / `CategoryLinkChecker` / `CategoryPagePreview` / `CategoryEmailClient` / `CategoryWebhooks` / `CategoryAdvertising` / `CategoryMiscellaneous` | Block | Other bot categories |
+| `CategoryPagePreview`              | Block               | Page-preview/link-unfurl bots (**added v5.0**)              |
+| `CategoryWebhooks`                 | Block               | Webhook callers (**added v5.0**)                            |
+| `CategoryEmailClient`              | Block               | Email-client link/preview bots (added v1.x, 2022)           |
+| `CategorySecurity` / `CategorySeo` / `CategoryMonitoring` / `CategoryArchiver` / `CategoryLinkChecker` / `CategoryAdvertising` / `CategoryMiscellaneous` | Block | Other bot categories |
 | `SignalNonBrowserUserAgent`        | Block               | UA doesn't look like a browser (can include API requests)   |
 | `SignalKnownBotDataCenter`         | Block               | Source is a known bot data-center range                     |
 | `SignalAutomatedBrowser`           | Block               | Indicators the client browser is automated                  |
@@ -78,6 +95,28 @@ All `TGT_*` rules apply only to **unverified** bots. Most rely on a **token** (a
 
 ---
 
+## Rules & Features Added by Version
+
+Bot Control is **versioned** (since v1.0, 2024-05-29). New **named rules** and major behavior changes by static version (newest first — verify current default vs latest with `describe-managed-rule-group` and the [changelog](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html)):
+
+| Version (date)        | Level    | New rules / key changes                                                                                     |
+| --------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| **6.1** (2026-07-24)  | COMMON   | New detection **signatures** across Advertising, AI, Content Fetcher, Scraping Framework, Search Engine, Security, SEO, Social Media (no new named rules) |
+| **6.0** (2026-05-22)  | COMMON   | More signatures (Advertising/Content Fetcher/Search Engine); **WBA expanded to commercial Regional**; WBA-verified bots now treated as **standard verified for all categories** (not just AI) |
+| **5.0** (2026-02-25)  | COMMON   | **New rules `CategoryPagePreview` + `CategoryWebhooks`** (2 new categories); +400 bots; **specific-before-generic** priority (generic patterns/signals match less often); includes v4.0 WBA labels |
+| **4.0** (2025-11-20)  | COMMON/TGT | **Web Bot Authentication (WBA)** — cryptographic verification; new `web_bot_auth`/`vendor`/`name`/`account` labels; `CategoryAI` and `TGT_TokenAbsent` **updated to not match WBA-verified**; Bedrock AgentCore support. *Static-only; CloudFront.* |
+| **3.3** (2025-11-17)  | COMMON   | Expanded **verified-bot** detection (Perplexity, Bytespider, DuckDuckGo, TikTok, Meta/Facebook orgs) — labels only |
+| **3.2** (2025-05-29)  | COMMON   | New bot-name/organization labels (OpenAI, Amazon, Alibaba CSP signal, etc.) — labels only |
+| **3.1** (2024-11-07)  | COMMON   | Added `nytimes` bot-name label                                                                              |
+| **2.0 / 3.0** (2024-09-13) | TARGETED | Big TARGETED batch: **`TGT_TokenAbsent`, `TGT_VolumetricSessionMaximum`, `TGT_SignalBrowserAutomationExtension`, `TGT_ML_CoordinatedActivityLow/Medium/High`, `TGT_TokenReuseIp/Asn/Country Low/Medium/High`**; deleted old single `TGT_TokenReuseIp`; per-rule `<RuleName>` labels; CSP signal labels. (v2.0 = all new rules at **Count**; v3.0 = default actions) |
+| 2023-09-06            | TARGETED | Added `TGT_TokenReuseIp`, `TGT_ML_CoordinatedActivityMedium/High` (ML opt-in) at Count                       |
+| 2023-08-30            | COMMON   | Added **`CategoryAI`** rule                                                                                  |
+| 2022-04-06            | COMMON   | Added **`CategoryEmailClient`** rule                                                                         |
+
+> **Version behavior:** default version vs latest static version can differ; new static versions **don't** auto-change default behavior unless AWS updates the default. **Pin a version in production** and test upgrades in Count. WBA (v4.0+) must be **explicitly selected**.
+
+---
+
 ## Bot Labels
 
 Bot Control adds labels you can act on with `LabelMatchStatement` in a **later** (higher priority-number) rule.
@@ -90,11 +129,66 @@ Bot Control adds labels you can act on with `LabelMatchStatement` in a **later**
 | `awswaf:managed:aws:bot-control:bot:category:http_library`       | HTTP client library            |
 | `awswaf:managed:aws:bot-control:bot:name:googlebot`              | Specific bot name              |
 | `awswaf:managed:aws:bot-control:bot:verified:true`               | Verified good bot              |
+| `awswaf:managed:aws:bot-control:bot:category:ai`                 | AI bot/agent (used for monetization/pricing) |
+| WBA / Web Bot Auth labels (v4.0+)                                | Bot cryptographically verified via signed HTTP messages |
 | `awswaf:managed:aws:bot-control:signal:automated_browser`        | Automated browser signal       |
 | `awswaf:managed:aws:bot-control:signal:non_browser_user_agent`   | Non-browser UA                 |
 | `awswaf:managed:token:rejected` / `absent`                        | Token state                    |
 
 > **Gotcha:** Verified-bot labels (`verified:true`) exist so you can **allow legitimate crawlers** (Googlebot, Bingbot). If you blanket-block bot categories without allowing verified bots first, you'll deindex your site from search engines.
+
+---
+
+## Web Bot Authentication (WBA) — verifying AI agents/crawlers
+
+**Web Bot Authentication (WBA)** lets legitimate bots/AI agents **cryptographically prove their identity** using signed HTTP messages (HTTP message signatures) — instead of relying on IP ranges or challenge-response. WAF verifies the signature against the bot's published key.
+
+- **Version requirement:** `AWSManagedRulesBotControlRuleSet` **Version_4.0 or later** (the static version must be explicitly selected).
+- Applies to **CloudFront distributions and Regional resources** in commercial Regions.
+- Lets verified AI crawlers/agents through **without** CAPTCHA/Challenge friction.
+- Bot Control **v4.0+ added WBA labels** so you can allow (or price) authenticated bots. Match on the WBA/verified labels the same way you match verified-crawler labels.
+- Complements the existing IP/UA-based verified-bot detection (Googlebot, etc.) with a cryptographic signal that's much harder to spoof.
+
+> **Use case:** you want to permit well-behaved AI agents (that sign their requests) while still challenging/blocking unsigned automation. Allow the WBA-verified label ahead of your bot-category blocks.
+
+---
+
+## AI Traffic Monetization (Monetize action)
+
+**AI traffic monetization** lets content/API providers **charge AI bots and agents for access** at the edge, instead of only allow/block. It adds a new rule action, **Monetize**.
+
+| Aspect                | Detail                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| **Action**            | `Monetize` — returns **HTTP 402 Payment Required** with payment instructions/pricing        |
+| **Flow**              | Client pays and **resubmits** with valid payment authorization → gains access               |
+| **Terminating**       | Yes — on a match, WAF **stops evaluating** later rules; no valid payment → 402 returned, request blocked |
+| **Scope**             | **CloudFront distributions only** (web ACL must be associated with CloudFront)              |
+| **Prerequisite**      | Web ACL must have a **`MonetizationConfig`** (defines accepted payment networks + base price) |
+| **Parameter**         | `PriceMultiplier` — integer **1–100** applied to the base price (default **1**)             |
+| **Pricing by bot**    | Use Bot Control **labels** (bot identity/verification status) to differentiate pricing       |
+| **Validation**        | Use **Test mode** to validate policies before enabling live monetization (classification is probabilistic) |
+
+```json
+{
+  "Name": "monetize-ai-bots",
+  "Priority": 20,
+  "Statement": { "LabelMatchStatement": { "Scope": "LABEL", "Key": "awswaf:managed:aws:bot-control:bot:category:ai" } },
+  "Action": { "Monetize": { "PriceMultiplier": 2 } },
+  "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "monetizeAI" }
+}
+```
+
+> **Gotchas:** Monetize is **CloudFront-only** and needs a `MonetizationConfig`; it's a **terminating** action (like Block/Allow), so ordering matters; classification is probabilistic — **use Test mode first** so you don't accidentally 402 legitimate traffic.
+
+---
+
+## AI Activity Dashboard
+
+Bot Control feeds an **AI activity dashboard** (and AI traffic analysis dashboards) that give visibility into **AI bot and agent traffic** hitting your application — useful before deciding what to allow, block, challenge, or monetize.
+
+- Built on Bot Control's bot/AI labels and request sampling.
+- Use it to size the AI-bot problem, tune category actions (e.g. `CategoryAI`), and validate WBA/monetization policies.
+- Complements the existing Bot Control console dashboard (share of traffic that is bots).
 
 ---
 
@@ -214,7 +308,10 @@ Approx WCU: **~50** (plus scope-down cost). TARGETED processing adds analysis co
 9. **CAPTCHA/Challenge are billed** — heavy challenge volume adds cost; monitor `CaptchaRequests`/`ChallengeRequests`.
 10. **Behind CloudFront/ALB with proxies**, ensure the client IP/token headers survive; otherwise volumetric/IP-based `TGT_*` rules mis-aggregate.
 11. **FMS-deployed Bot Control** can appear "missing" in member accounts if the policy scope/remediation is off — check the Firewall Manager policy, not just the account's Web ACL.
-12. **Version changes** to the managed group can shift rule actions — pin a version in production and test upgrades in Count.
+12. **Version changes** to the managed group can shift rule actions — pin a version in production and test upgrades in Count. Newer static versions add bot categories/signatures (e.g. **v6.1**); **WBA requires v4.0+** and the static version must be explicitly selected.
+13. **Monetize is CloudFront-only and terminating** — it needs a `MonetizationConfig`, returns HTTP 402, and stops rule evaluation on match. Validate with **Test mode** before going live so you don't 402 legitimate users.
+14. **WBA verifies signatures, not IPs** — it only helps for bots/agents that actually sign requests (Web Bot Auth); unsigned automation still needs the usual category/signal handling.
+15. **`EnableMachineLearning` is on by default** — disabling it silently turns off the `TGT_ML_CoordinatedActivity*` rules; if those rules "do nothing," confirm ML is enabled.
 
 ### Official Caveats (from AWS docs)
 
@@ -265,5 +362,12 @@ Approx WCU: **~50** (plus scope-down cost). TARGETED processing adds analysis co
 - [Client Application Integration (SDKs)](https://docs.aws.amazon.com/waf/latest/developerguide/waf-application-integration.html)
 - [Token Domains](https://docs.aws.amazon.com/waf/latest/developerguide/waf-tokens-domains.html)
 - [Bot Control Example Configurations](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot-examples.html)
+- [AI traffic monetization](https://docs.aws.amazon.com/waf/latest/developerguide/waf-ai-traffic-monetization.html)
+- [AI traffic monetization — getting started](https://docs.aws.amazon.com/waf/latest/developerguide/waf-ai-traffic-monetization-getting-started.html)
+- [MonetizeAction (API reference)](https://docs.aws.amazon.com/waf/latest/APIReference/API_MonetizeAction.html)
+- [Authenticate AI agent traffic with Bot Control / WBA (blog)](https://aws.amazon.com/blogs/security/authenticate-legitimate-ai-agent-traffic-with-aws-waf-bot-control/)
+- [AI activity dashboard (announcement)](https://aws.amazon.com/about-aws/whats-new/2026/02/aws-waf-ai-activity-dashboard/)
+- [Managing AI bots with AWS WAF (blog)](https://aws.amazon.com/blogs/networking-and-content-delivery/how-to-manage-ai-bots-with-aws-waf-and-enhance-security/)
+- [AWS Managed Rules changelog](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html)
 
 ---

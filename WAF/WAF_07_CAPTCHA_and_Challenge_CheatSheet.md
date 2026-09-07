@@ -124,12 +124,14 @@ Status labels always start with one of these prefixes, then a status name:
 
 **Immunity time** = how long a solved token is honored before the client must solve again. Configurable at the **Web ACL** level and overridable per **rule**:
 
-| Setting                         | Controls                                                        |
-| ------------------------------- | -------------------------------------------------------------- |
-| **Challenge immunity time**     | How long a solved **challenge** is valid                       |
-| **CAPTCHA immunity time**       | How long a solved **CAPTCHA** is valid                         |
-| **Token immunity (timestamp)**  | Applied when the token is checked; expiry → `rejected:expired` |
+| Setting                         | Controls                                                        | Default | Min | Max |
+| ------------------------------- | --------------------------------------------------------------- | ------- | --- | --- |
+| **Challenge immunity time**     | How long a solved **challenge** is valid                        | 300 s   | **300 s** | 259,200 s (3 days) |
+| **CAPTCHA immunity time**       | How long a solved **CAPTCHA** is valid                          | 300 s   | **60 s**  | 259,200 s (3 days) |
+| **Token immunity (timestamp)**  | Applied when the token is checked; expiry → `rejected:expired`  | 300 s   | —   | 259,200 s |
 
+- Configured via `ImmunityTimeProperty.ImmunityTime` (seconds). Note the **Challenge minimum is 300 s** while **CAPTCHA can go as low as 60 s**.
+- Set at the **Web ACL** level (`ChallengeConfig` / `CaptchaConfig`) and overridable **per rule** — the rule-level setting wins for that rule.
 - Shorter immunity = more re-challenges (more friction/cost, higher assurance). Longer = smoother UX, weaker.
 
 ---

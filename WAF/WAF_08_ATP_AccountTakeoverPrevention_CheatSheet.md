@@ -95,13 +95,23 @@ ATP can read your origin's login **response** to know whether an attempt succeed
 
 ATP stamps labels you can act on with later `LabelMatchStatement` rules:
 
-| Label (representative)                                              | Meaning                          |
-| ------------------------------------------------------------------ | -------------------------------- |
-| `awswaf:managed:aws:atp:signal:credential_compromised`             | Submitted creds found in breach data |
-| `awswaf:managed:aws:atp:signal:missing_credential`                 | Login without proper fields      |
-| `awswaf:managed:aws:atp:aggregate:volumetric_session`             | Too many logins per session      |
-| `awswaf:managed:aws:atp:aggregate:volumetric_ip_*`                | Too many logins per IP           |
-| `awswaf:managed:token:rejected` / `absent`                         | Token state (TARGETED-style)     |
+All labels use the prefix `awswaf:managed:aws:atp:`. Each rule adds both a **descriptive** label and a **`<RuleName>`** label (e.g. `...:VolumetricIpHigh`).
+
+| Label (representative)                                                          | Meaning                          |
+| ------------------------------------------------------------------------------- | -------------------------------- |
+| `...:signal:credential_compromised`                                             | Submitted creds found in stolen-credential DB |
+| `...:signal:missing_credential`                                                 | Login without proper username/password |
+| `...:aggregate:volumetric:ip:high` / `:medium` / `:low`                         | Login rate per IP (only `high` blocks) |
+| `...:aggregate:volumetric:session`                                              | Too many logins per session      |
+| `...:aggregate:attribute:compromised_credentials`                               | Repeated stolen-cred use in a session |
+| `...:aggregate:attribute:username_traversal` / `:password_traversal`            | Username/password cycling        |
+| `...:aggregate:attribute:long_session`                                          | Long-lived login session         |
+| `...:aggregate:attribute:suspicious_tls_fingerprint`                            | Suspicious TLS fingerprint (**CloudFront only**) |
+| `...:aggregate:volumetric:session:token_reuse:ip`                               | One token used across **>5 IPs** |
+| `...:aggregate:volumetric:ip:failed_login_response:high/medium/low`             | Failed-login-response rate per IP (CloudFront) |
+| `...:aggregate:volumetric:ip:successful_login_response:high/medium/low`         | Successful-login-response rate per IP (CloudFront) |
+| `...:aggregate:volumetric:session:failed_login_response:*` / `successful_login_response:*` | Same, per session (CloudFront) |
+| `awswaf:managed:token:rejected` / `absent`                                      | Token state (see CAPTCHA & Challenge sheet) |
 
 ```
 Priority 20:  ATP rule group           (adds labels)
@@ -111,18 +121,43 @@ Priority 22:  CAPTCHA → LabelMatch atp:aggregate:volumetric_session
 
 ---
 
-## Rules Inside the ATP Group (examples)
+## Rules Inside the ATP Group (`AWSManagedRulesATPRuleSet`, WCU 50)
 
-| Rule name                        | Action tendency | Purpose                                  |
-| -------------------------------- | --------------- | ---------------------------------------- |
-| `VolumetricIpHigh`               | Block/Challenge | Excessive logins from one IP             |
-| `VolumetricSession`              | Challenge       | Excessive logins in a session            |
-| `AttributeCompromisedCredentials`| Block           | Known-stolen credentials submitted       |
-| `AttributePasswordTraversal`     | Block           | Password-field manipulation              |
-| `AttributeUsernameTraversal`     | Block           | Username-field manipulation              |
-| `MissingCredential`              | Block/Count     | Malformed login attempt                  |
+Complete rule listing (latest static version). All rules act **Block**. **T** = requires a WAF **token**; **R** = response-inspection rule, **CloudFront only** (not evaluated over HTTP/3 QUIC).
 
-> **Gotcha:** Some ATP rules depend on the WAF **token** (like Bot Control TARGETED). Real users need the JS/Mobile SDK, or token-based rules treat them as suspicious.
+| Rule name                              | Action | Trigger / threshold                                                          | T | R |
+| -------------------------------------- | ------ | ---------------------------------------------------------------------------- | - | - |
+| `UnsupportedCognitoIDP`                | Block  | Traffic to a Cognito user pool (ATP unsupported there) — guards other rules  |   |   |
+| `VolumetricIpHigh`                     | Block  | **>20 login requests / IP / 10 min** (also labels medium >15, low >10 — no action) |   |   |
+| `VolumetricSession`                    | Block  | **>20 login requests / session / 30 min**                                    | ✓ |   |
+| `AttributeCompromisedCredentials`      | Block  | Repeated requests in a session using **stolen credentials**                  |   |   |
+| `AttributeUsernameTraversal`           | Block  | Same session cycling **many usernames** (username traversal)                 |   |   |
+| `AttributePasswordTraversal`           | Block  | Same username cycling **many passwords** (password traversal)                |   |   |
+| `AttributeLongSession`                 | Block  | Session **>6 h** with ≥1 login every 30 min                                  | ✓ |   |
+| `TokenRejected`                        | Block  | Token rejected by token management (**no label of its own** — match `awswaf:managed:token:rejected`) | ✓ |   |
+| `SignalMissingCredential`              | Block  | Login **missing username or password**                                       |   |   |
+| `VolumetricIpFailedLoginResponseHigh`  | Block  | **>10 failed logins / IP / 10 min** (from response inspection)               |   | ✓ |
+| `VolumetricSessionFailedLoginResponseHigh` | Block | **>10 failed logins / session / 30 min** (from response inspection)         | ✓ | ✓ |
+
+**Response-inspection rules** also emit medium/low **failed** and **successful** login-response labels (no action) so you can build custom label-match rules. WAF inspects up to the first **64 KB** of the response body/JSON for success/failure indicators.
+
+> **Gotcha:** Token-required rules (T) treat legitimate users as suspicious without the **JS/Mobile SDK** (or a CAPTCHA/Challenge action) issuing a token. Response-inspection rules (R) do nothing outside CloudFront and are skipped for HTTP/3 (QUIC).
+
+> Rule details rephrased from [AWS WAF Fraud Control ATP rule group](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-atp.html) for compliance with licensing restrictions.
+
+---
+
+## Rules & Features Added by Version
+
+ATP is **versioned** (default vs latest static version can differ — pin in production, verify with `describe-managed-rule-group` and the [changelog](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-changelog.html)):
+
+| Version / date            | Change                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| **1.1** (2024-09-13)      | Labeling update — every rule now applies a `awswaf:managed:aws:atp:<RuleName>` label            |
+| **1.0** (2024-05-29)      | Rule group became **versioned** (behavior unchanged); default set to 1.0                        |
+| 2022-08-11                | Added **`UnsupportedCognitoIDP`** (guards against evaluating Cognito user-pool traffic)          |
+| 2022-02-15                | Added **response-inspection** rules `VolumetricIpFailedLoginResponseHigh` + `VolumetricSessionFailedLoginResponseHigh` (CloudFront) |
+| 2022-02-11                | **Initial release** of `AWSManagedRulesATPRuleSet`                                              |
 
 ---
 
