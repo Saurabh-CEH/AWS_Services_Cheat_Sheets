@@ -114,6 +114,8 @@ Status labels always start with one of these prefixes, then a status name:
 
 **CAPTCHA-specific:** `captcha:absent` (or a token with only a challenge solve, not a CAPTCHA solve) happens when the client has a token from a **silent Challenge** but has **never solved a CAPTCHA puzzle** — so any rule needing a CAPTCHA solve treats it as absent until the puzzle is completed.
 
+> **By design — Challenge-only configs still emit `captcha:absent`:** When you use **only the Challenge action** (no CAPTCHA action anywhere), the token carries a challenge solve but never a CAPTCHA solve, so token management **always** reports `awswaf:managed:captcha:absent`. This is **expected** and not an error — don't treat `captcha:absent` as a problem when you haven't configured CAPTCHA. Match on the `token:` (challenge) labels instead of the `captcha:` labels in Challenge-only setups.
+
 > **Takeaway:** `absent` is normal for the very first request and for legitimate non-browser clients. It's a problem only when you *expect* a token (e.g., a browser that should have run the SDK) — then look at SDK integration, cookie/header stripping by a CDN/proxy, and token-domain configuration.
 
 ---
