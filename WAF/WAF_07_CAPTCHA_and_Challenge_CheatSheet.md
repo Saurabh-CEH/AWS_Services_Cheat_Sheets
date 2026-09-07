@@ -54,21 +54,67 @@ Treated like COUNT:         Challenge → HTTP 202 + x-amzn-waf-action: challeng
 
 ---
 
-## Token Status Labels
+## Token Labels
 
-WAF adds labels reflecting token state (visible to later rules + CloudWatch metrics):
+WAF token management adds labels reflecting token state, visible to rules that run **after** the labeling rule group and recorded to CloudWatch label metrics.
 
-| Label                                          | Meaning                                                        |
-| ---------------------------------------------- | -------------------------------------------------------------- |
-| `awswaf:managed:token:accepted`                | Valid challenge solution, unexpired, valid domain              |
-| `awswaf:managed:captcha:accepted`              | Valid CAPTCHA solution                                         |
-| `...:token:rejected:not_solved`                | Token missing the challenge/CAPTCHA solution                   |
-| `...:token:rejected:expired`                   | Solve timestamp exceeded the configured **immunity time**      |
-| `...:token:rejected:domain_mismatch`           | Token domain not in the Web ACL's **token domain** config      |
-| `...:token:rejected:invalid`                   | Token couldn't be read                                         |
-| `...:token:absent` / `...:captcha:absent`      | No token on the request                                        |
-| `awswaf:managed:token:id:<id>`                 | Client-session identifier (changes on new token)              |
-| `awswaf:managed:token:fingerprint:<id>`        | Browser fingerprint (stable across token attempts; not unique) |
+> **Important:** These token labels are applied **only when you use an intelligent-threat-mitigation managed rule group** — **Bot Control, ATP, ACFP, or Anti-DDoS**. Plain CAPTCHA/Challenge **rule actions by themselves do not add these labels**. So to label/route on token state, run one of those managed groups (even in Count) ahead of your label-match rules.
+
+### 1. Informational labels (no CloudWatch metrics for these)
+
+| Label                                            | Meaning                                                                 |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| `awswaf:managed:token:id:<identifier>`           | Unique **client-session** identifier; **changes** if the client acquires a new token (e.g. after discarding one) |
+| `awswaf:managed:token:fingerprint:<identifier>`  | Robust **browser fingerprint** from client signals; **stable** across token-acquisition attempts, and **not unique** to a single client |
+
+### 2. Token status labels — two namespace prefixes
+
+Status labels always start with one of these prefixes, then a status name:
+
+| Prefix                       | Reports on                                                        |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `awswaf:managed:token:`      | General token status **and** the token's **challenge** information |
+| `awswaf:managed:captcha:`    | The token's **CAPTCHA** information                                |
+
+### 3. Status names (apply under either prefix)
+
+| Status name                     | Meaning                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `accepted`                      | Token present with a **valid** challenge/CAPTCHA solution, an **unexpired** timestamp, and a **valid domain** |
+| `rejected`                      | Token present but fails acceptance — always paired with one reason below                          |
+| `rejected:not_solved`           | Token is **missing** the challenge/CAPTCHA solution                                              |
+| `rejected:expired`              | Challenge/CAPTCHA timestamp **expired** per the Web ACL's configured immunity time               |
+| `rejected:domain_mismatch`      | Token domain **not a match** for the Web ACL's token-domain configuration                        |
+| `rejected:invalid`              | WAF **couldn't read** the token                                                                  |
+| `absent`                        | Request has **no token** (or the token manager couldn't read it)                                 |
+
+**Combining prefix + status** gives the full label. Examples:
+- `awswaf:managed:token:accepted` — valid **challenge** solution, unexpired, valid domain.
+- `awswaf:managed:captcha:accepted` — valid **CAPTCHA** solution.
+- `awswaf:managed:captcha:rejected` **+** `awswaf:managed:captcha:rejected:expired` — the CAPTCHA timestamp exceeded the CAPTCHA immunity time.
+- `awswaf:managed:token:absent` / `awswaf:managed:captcha:absent` — no token on the request.
+
+> A `rejected` label is always accompanied by its reason label (the `rejected:*` variant), so you'll see two labels together.
+
+### Why a token / CAPTCHA is `absent`
+
+`awswaf:managed:token:absent` (or `captcha:absent`) means the request arrived **with no WAF token at all** (or the token manager couldn't read one). Common scenarios that cause this:
+
+| Scenario                                             | Why it produces `absent`                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **First request in a session**                       | The client hasn't been challenged yet, so no token has been issued              |
+| **No SDK integration + never challenged**            | Without the JS/Mobile SDK, a token is only minted after a Challenge/CAPTCHA solve; if nothing has challenged the client, it stays token-less |
+| **Non-browser / API / server-to-server client**      | CLIs, backend calls, IoT, and old native apps don't run the JS interstitial or carry the cookie/header, so they never acquire a token |
+| **Client strips or doesn't send the token**          | Cookies disabled, privacy tooling, or a client that drops the `aws-waf-token` cookie / header |
+| **Cross-domain / subdomain call without token domains** | The token exists but for a different host; the token manager sees none valid for this domain (borderline with `domain_mismatch`, but a wholly missing token reads as `absent`) |
+| **Token expired and discarded**                      | After immunity time passes, a client may discard the old token and send the next request with none |
+| **CDN / proxy strips the cookie or header**          | An intermediary (custom CDN, corporate proxy) removes the `aws-waf-token` cookie or `x-aws-waf-token` header before it reaches WAF |
+| **New `token:id`**                                   | When a client acquires a fresh token the session id changes; the request just before re-acquisition can appear token-less |
+| **Automated/bot traffic**                            | Bots typically don't solve challenges or persist tokens — a flood of `absent` labels on protected paths is itself a bot signal |
+
+**CAPTCHA-specific:** `captcha:absent` (or a token with only a challenge solve, not a CAPTCHA solve) happens when the client has a token from a **silent Challenge** but has **never solved a CAPTCHA puzzle** — so any rule needing a CAPTCHA solve treats it as absent until the puzzle is completed.
+
+> **Takeaway:** `absent` is normal for the very first request and for legitimate non-browser clients. It's a problem only when you *expect* a token (e.g., a browser that should have run the SDK) — then look at SDK integration, cookie/header stripping by a CDN/proxy, and token-domain configuration.
 
 ---
 
@@ -160,6 +206,9 @@ Set token domains + immunity times on the Web ACL (excerpt):
 6. **CAPTCHA runs a challenge first** — a client that can't run the challenge script never even reaches the puzzle.
 7. **Billed per attempt** — heavy challenge/CAPTCHA volume (e.g., during a DDoS event via Anti-DDoS) adds real cost.
 8. **`Accept: text/html` needed for the interstitial** — non-HTML clients get the status code (202/405) but no solvable page.
+9. **Token labels need a managed group** — `awswaf:managed:token:*` / `awswaf:managed:captcha:*` labels are added **only** by Bot Control / ATP / ACFP / Anti-DDoS. If you want to match on token state, run one of those (even in Count) before your label-match rules; plain CAPTCHA/Challenge actions won't emit them.
+10. **`token:id` changes on new tokens** — don't use it as a stable client key across sessions; the **fingerprint** label is more stable but **not unique** per client.
+11. **`rejected` comes with a reason label** — filter on the specific `rejected:*` (expired / domain_mismatch / not_solved / invalid) to diagnose, not just `rejected`.
 
 ---
 
@@ -194,6 +243,7 @@ Set token domains + immunity times on the Web ACL (excerpt):
 - [Token domains](https://docs.aws.amazon.com/waf/latest/developerguide/web-acl-captcha-challenge-token-domains.html)
 - [Token immunity times](https://docs.aws.amazon.com/waf/latest/developerguide/waf-tokens-immunity-times.html)
 - [Token use in intelligent threat mitigation](https://docs.aws.amazon.com/waf/latest/developerguide/waf-tokens.html)
+- [Types of token labels](https://docs.aws.amazon.com/waf/latest/developerguide/waf-tokens-labeling.html)
 - [Application integration SDKs](https://docs.aws.amazon.com/waf/latest/developerguide/waf-application-integration.html)
 - [AWS WAF Pricing](https://aws.amazon.com/waf/pricing/)
 
